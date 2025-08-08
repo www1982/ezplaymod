@@ -70,10 +70,21 @@
 
 ### 主要 Action
 
+- **`state`**: 获取当前完整的游戏状态快照 (无需 Payload)。
+
+#### 查询 (Queries)
+
 - **`find_objects`**: 查找符合条件的游戏对象。
 - **`grid`**: 查询指定坐标格子的详细信息。
-- **`execute_reflection`**: 在安全白名单的约束下，执行反射调用。
+- **`pathfinding`**: 查询两点之间的寻路信息。
+- **`chore_status`**: 查询特定任务的状态。
+
+#### 执行器 (Executors)
+
+- **`execute_global_action`**: 执行一个全局动作 (例如暂停、加速)。
+- **`execute_reflection`**: 在安全白名单的约束下，执行反射调用以修改游戏对象。
 - **`place_blueprint`**: 根据蓝图数据在游戏中进行建造。
+- **`destroy_building`**: 销毁指定的建筑。
 
 ## 开发与构建
 
