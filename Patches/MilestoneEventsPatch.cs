@@ -1,0 +1,43 @@
+using HarmonyLib;
+using EZPlay.Core;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using TUNING;
+
+namespace EZPlay.Patches
+{
+    // 捕获研究完成事件
+    [HarmonyPatch(typeof(Research), "CompleteResearch")]
+    public class ResearchCompletePatch
+    {
+        public static void Postfix(Research __instance, Tech tech)
+        {
+            ModLoader.EventServer.BroadcastEvent("Milestone.ResearchComplete", new
+            {
+                TechId = tech.Id,
+                TechName = tech.Name
+            });
+        }
+    }
+
+    // 捕获新复制人打印事件
+    [HarmonyPatch(typeof(Immigration), "OnSpawn")]
+    public class NewDuplicantPatch
+    {
+        public static void Postfix(Immigration __instance, GameObject duplicant)
+        {
+            var identity = duplicant.GetComponent<MinionIdentity>();
+            var traits = identity.modifiers.attributes.AttributeTable
+                .Where(p => p.Attribute is Klei.AI.Trait)
+                .Select(p => p.Attribute.Id)
+                .ToList();
+
+            ModLoader.EventServer.BroadcastEvent("Milestone.NewDuplicantPrinted", new
+            {
+                Name = identity.GetProperName(),
+                Traits = traits
+            });
+        }
+    }
+}
