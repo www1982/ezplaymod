@@ -43,7 +43,14 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>/Users/user/Desktop/CODE/MOd/lib/Managed/Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>/Users/user/Desktop/CODE/MOd/lib/Managed/UnityEngine.ScreenCaptureModule.dll</HintPath>
+    </Reference>
     <!-- 如果需要，继续用这种格式添加其他 DLL -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WebSocketSharp-netstandard" Version="1.0.1" />
   </ItemGroup>
 
 </Project>

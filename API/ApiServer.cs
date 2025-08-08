@@ -1,223 +1,150 @@
 using System;
-using System.IO;
-using System.Net;
-using System.Text;
-using System.Threading;
 using System.Collections.Generic;
-using EZPlay.API.Executors;
-using EZPlay.API.Queries;
-using EZPlay.Blueprints;
+using System.Net;
+using System.Threading;
 using EZPlay.GameState;
 using EZPlay.Utils;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using UnityEngine;
+using WebSocketSharp;
+using WebSocketSharp.Server;
 
 namespace EZPlay.API
 {
-    public class ApiServer
+    public static class ApiServer
     {
-        private readonly HttpListener _listener = new HttpListener();
-        private Thread _listenerThread;
-        private readonly string _prefix;
-
-        public ApiServer(string prefix) { _prefix = prefix; _listener.Prefixes.Add(prefix); }
-        public void Start()
+        private static WebSocketServer _server;
+        private static Thread _serverThread;
+        // Simple IP whitelist for security
+        private static readonly List<IPAddress> AllowedIPs = new List<IPAddress>
         {
-            _listener.Start();
-            _listenerThread = new Thread(() =>
+            IPAddress.Parse("127.0.0.1"),
+            IPAddress.Loopback,
+            IPAddress.IPv6Loopback
+        };
+
+        public static void Start()
+        {
+            if (_server != null && _server.IsListening)
             {
-                try { while (_listener.IsListening) HandleRequest(_listener.GetContext()); }
-                catch (HttpListenerException) { }
-            })
-            { IsBackground = true };
-            _listenerThread.Start();
-            Debug.Log($"[AI Mod] Universal API Server started. Listening on {_prefix}");
-        }
-        public void Stop() { _listener.Stop(); _listenerThread?.Join(); }
+                return;
+            }
 
-        private static class Routes
-        {
-            public const string ApiRoot = "/api";
-            public const string State = "/state";
-            public const string FindObjects = "/find_objects";
-            public const string GetProperty = "/get_property";
-            public const string CallMethod = "/call_method";
-            public const string GetObjectDetails = "/get_object_details";
-            public const string GetPath = "/pathfinding/get_path";
-            public const string CreateBlueprint = "/blueprints/create";
-            public const string PlaceBlueprint = "/blueprints/place";
-            public const string Build = "/build";
-            public const string Dig = "/dig";
-            public const string Research = "/research";
-            public const string GetCells = "/grid/get_cells";
-            public const string GetChoresStatus = "/chores/get_status";
-            public const string CoordsToCell = "/util/coords_to_cell";
-            public const string CanBuild = "/precheck/build";
-            public const string CanDig = "/precheck/dig";
+            _serverThread = new Thread(() =>
+            {
+                _server = new WebSocketServer("ws://0.0.0.0:8080");
+                _server.AddWebSocketService<GameService>("/api");
+                _server.Start();
+
+                Console.WriteLine("[EZPlay.ApiServer] WebSocket Server started on ws://0.0.0.0:8080/api");
+            });
+            _serverThread.IsBackground = true;
+            _serverThread.Start();
         }
 
-        private async void HandleRequest(HttpListenerContext context)
+        public static void Stop()
         {
-            var request = context.Request;
-            var response = context.Response;
-            object responseData = null;
-            string status = "success";
-            int statusCode = (int)HttpStatusCode.OK;
+            if (_server != null && _server.IsListening)
+            {
+                _server.Stop();
+                _server = null;
+            }
+
+            if (_serverThread != null && _serverThread.IsAlive)
+            {
+                _serverThread.Abort();
+                _serverThread = null;
+            }
+        }
+
+        public static void Broadcast(string message)
+        {
+            if (_server != null && _server.IsListening)
+            {
+                _server.WebSocketServices["/api"].Sessions.Broadcast(message);
+            }
+        }
+
+        public static bool IsClientAllowed(IPAddress ipAddress)
+        {
+            return AllowedIPs.Contains(ipAddress);
+        }
+    }
+
+    public class GameService : WebSocketBehavior
+    {
+        protected override void OnOpen()
+        {
+            Console.WriteLine($"[EZPlay.GameService] Client connected: {ID}");
+            // Send initial state
+            var initialState = GameStateManager.LastKnownState;
+            var response = new { type = "GameState", payload = initialState };
+            Send(JsonConvert.SerializeObject(response));
+        }
+
+        protected override void OnMessage(MessageEventArgs e)
+        {
+            if (!ApiServer.IsClientAllowed(Context.UserEndPoint.Address))
+            {
+                Console.WriteLine($"[EZPlay.GameService] Unauthorized request from {Context.UserEndPoint.Address}");
+                var errorResponse = new { type = "Error", payload = "Unauthorized IP address." };
+                Send(JsonConvert.SerializeObject(errorResponse));
+                Context.WebSocket.Close();
+                return;
+            }
 
             try
             {
-                string body = new StreamReader(request.InputStream).ReadToEnd();
-                string path = request.Url.AbsolutePath.ToLower();
-
-                // 为根路径 /api/ 或 /api 提供一个欢迎页面和端点列表
-                if (path == Routes.ApiRoot || path == Routes.ApiRoot + "/")
+                var request = JsonConvert.DeserializeObject<ApiRequest>(e.Data);
+                if (request == null || string.IsNullOrEmpty(request.Action))
                 {
-                    responseData = new
+                    throw new ArgumentException("Invalid request format.");
+                }
+
+                // Use the dispatcher to run the logic on the main game thread
+                var task = MainThreadDispatcher.RunOnMainThread(() =>
+                {
+                    var handler = new RequestHandler();
+                    return handler.HandleRequest(request.Action, request.Payload);
+                });
+
+                // Asynchronously wait for the result and send it back
+                task.ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
                     {
-                        message = "ONI Universal API Server is running.",
-                        available_endpoints = new[]
-                        {
-                            $"GET  {Routes.ApiRoot}{Routes.State} - Retrieves the current game state for all worlds.",
-                            $"POST {Routes.ApiRoot}{Routes.FindObjects} - Finds game objects. Body: {{ worldId: int, componentName: string }}",
-                            $"POST {Routes.ApiRoot}{Routes.GetProperty} - Gets a property from an object. Body: {{ objectId: string, component: string, property: string }}",
-                            $"POST {Routes.ApiRoot}{Routes.CallMethod} - Calls a method on an object. Body: {{ objectId: string, component: string, method: string, params: [...] }}",
-                            $"POST {Routes.ApiRoot}{Routes.GetObjectDetails} - Gets all whitelisted details for an object. Body: {{ objectId: string }}",
-                            $"POST {Routes.ApiRoot}{Routes.GetPath} - Gets pathfinding info between an object and a cell. Body: {{ navigatorId: string, targetCell: int }}",
-                            $"POST {Routes.ApiRoot}{Routes.CreateBlueprint} - Creates and saves a blueprint. Body: {{ name: string, objectIds: [string], anchorObjectId: string }}",
-                            $"POST {Routes.ApiRoot}{Routes.PlaceBlueprint} - Places a saved blueprint. Body: {{ name: string, anchorCell: int }}",
-                            $"POST {Routes.ApiRoot}{Routes.Build} - Places a build order. Body: {{ buildingId: string, cell: int }}",
-                            $"POST {Routes.ApiRoot}{Routes.Dig} - Places dig orders. Body: {{ cells: [int, ...] }}",
-                            $"POST {Routes.ApiRoot}{Routes.Research} - Manages research. Body: {{ techId: string }} or {{ cancel: true }}",
-                            $"POST {Routes.ApiRoot}{Routes.GetCells} - Gets detailed information for a list of cells. Body: {{ cells: [int, ...] }}",
-                            $"POST {Routes.ApiRoot}{Routes.GetChoresStatus} - Gets the status of chores on a list of cells. Body: {{ cells: [int, ...] }}",
-                            $"POST {Routes.ApiRoot}{Routes.CoordsToCell} - Converts XY coordinates to a cell ID. Body: {{ x: int, y: int }}",
-                            $"POST {Routes.ApiRoot}{Routes.CanBuild} - Checks if a building can be placed. Body: {{ buildingId: string, cell: int }}",
-                            $"POST {Routes.ApiRoot}{Routes.CanDig} - Checks if cells can be dug. Body: {{ cells: [int, ...] }}"
-                        }
-                    };
-                }
-                else if (path.EndsWith(Routes.GetPath))
-                {
-                    JObject query = JObject.Parse(body);
-                    responseData = await MainThreadDispatcher.RunOnMainThread(() => PathfindingQueryExecutor.GetPath(query["navigatorId"].Value<string>(), query["targetCell"].Value<int>()));
-                }
-                else if (path.EndsWith(Routes.CreateBlueprint))
-                {
-                    JObject query = JObject.Parse(body);
-                    var name = query["name"].Value<string>();
-                    var objectIds = query["objectIds"].ToObject<List<string>>();
-                    var anchorObjectId = query["anchorObjectId"].Value<string>();
-
-                    var blueprint = await MainThreadDispatcher.RunOnMainThread(() => BlueprintManager.CreateBlueprint(name, objectIds, anchorObjectId));
-                    BlueprintManager.SaveBlueprintToFile(blueprint);
-                    responseData = $"Blueprint '{name}' created and saved successfully.";
-                }
-                else if (path.EndsWith(Routes.PlaceBlueprint))
-                {
-                    JObject query = JObject.Parse(body);
-                    var name = query["name"].Value<string>();
-                    var anchorCell = query["anchorCell"].Value<int>();
-
-                    var blueprint = BlueprintManager.LoadBlueprintFromFile(name);
-                    await MainThreadDispatcher.RunOnMainThread(() => BlueprintPlacer.PlaceBlueprint(blueprint, anchorCell));
-                    responseData = $"Blueprint '{name}' placement commands issued.";
-                }
-                else if (path.EndsWith(Routes.GetObjectDetails))
-                {
-                    JObject query = JObject.Parse(body);
-                    responseData = await MainThreadDispatcher.RunOnMainThread(() => ReflectionExecutor.GetObjectDetails(query["objectId"].Value<string>()));
-                }
-                else if (path.EndsWith(Routes.CanBuild))
-                {
-                    JObject query = JObject.Parse(body);
-                    responseData = await MainThreadDispatcher.RunOnMainThread(() => GlobalActionExecutor.CanBuild(query["buildingId"].Value<string>(), query["cell"].Value<int>()));
-                }
-                else if (path.EndsWith(Routes.CanDig))
-                {
-                    JObject query = JObject.Parse(body);
-                    var cells = query["cells"].ToObject<List<int>>();
-                    responseData = await MainThreadDispatcher.RunOnMainThread(() => GlobalActionExecutor.CanDig(cells));
-                }
-                else if (path.EndsWith(Routes.GetChoresStatus))
-                {
-                    JObject query = JObject.Parse(body);
-                    var cells = query["cells"].ToObject<List<int>>();
-                    responseData = await MainThreadDispatcher.RunOnMainThread(() => ChoreStatusQueryExecutor.GetChoresStatus(cells));
-                }
-                else if (path.EndsWith(Routes.GetCells))
-                {
-                    JObject query = JObject.Parse(body);
-                    var cells = query["cells"].ToObject<List<int>>();
-                    responseData = await MainThreadDispatcher.RunOnMainThread(() => GridQueryExecutor.GetCellsInfo(cells));
-                }
-                else if (path.EndsWith(Routes.Build))
-                {
-                    JObject query = JObject.Parse(body);
-                    await MainThreadDispatcher.RunOnMainThread(() => GlobalActionExecutor.Build(query["buildingId"].Value<string>(), query["cell"].Value<int>(), Orientation.Neutral, null));
-                    responseData = "Build command issued.";
-                }
-                else if (path.EndsWith(Routes.Dig))
-                {
-                    JObject query = JObject.Parse(body);
-                    var cells = query["cells"].ToObject<List<int>>();
-                    await MainThreadDispatcher.RunOnMainThread(() => GlobalActionExecutor.Dig(cells));
-                    responseData = "Dig command issued for " + cells.Count + " cells.";
-                }
-                else if (path.EndsWith(Routes.Research))
-                {
-                    JObject query = JObject.Parse(body);
-                    string techId = query["techId"]?.Value<string>();
-                    bool cancel = query["cancel"]?.Value<bool>() ?? false;
-                    await MainThreadDispatcher.RunOnMainThread(() => GlobalActionExecutor.ManageResearch(techId, cancel));
-                    responseData = "Research command issued.";
-                }
-                else if (path.EndsWith(Routes.CoordsToCell))
-                {
-                    JObject query = JObject.Parse(body);
-                    responseData = GlobalActionExecutor.CoordsToCell(query["x"].Value<int>(), query["y"].Value<int>());
-                }
-                else if (path.EndsWith(Routes.FindObjects))
-                {
-                    JObject query = JObject.Parse(body);
-                    responseData = await MainThreadDispatcher.RunOnMainThread(() => ReflectionExecutor.FindObjects(query));
-                }
-                else if (path.EndsWith(Routes.GetProperty))
-                {
-                    JObject query = JObject.Parse(body);
-                    responseData = await MainThreadDispatcher.RunOnMainThread(() => ReflectionExecutor.GetProperty(query["objectId"].Value<string>(), query["component"].Value<string>(), query["property"].Value<string>()));
-                }
-                else if (path.EndsWith(Routes.CallMethod))
-                {
-                    JObject query = JObject.Parse(body);
-                    responseData = await MainThreadDispatcher.RunOnMainThread(() => ReflectionExecutor.CallMethod(query["objectId"].Value<string>(), query["component"].Value<string>(), query["method"].Value<string>(), query["params"] as JArray));
-                }
-                // 保留旧的 /state 端点，方便快速观察
-                else if (request.HttpMethod == "GET" && path.EndsWith(Routes.State))
-                {
-                    responseData = GameStateManager.LastKnownState;
-                }
-                else
-                {
-                    throw new NotSupportedException($"Endpoint '{request.Url.AbsolutePath}' not supported.");
-                }
+                        var errorResponse = new { type = "Error", payload = t.Exception.InnerException.Message };
+                        Send(JsonConvert.SerializeObject(errorResponse));
+                    }
+                    else
+                    {
+                        var response = new { type = request.Action + "Response", payload = t.Result };
+                        Send(JsonConvert.SerializeObject(response));
+                    }
+                });
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                status = "error";
-                statusCode = e is UnauthorizedAccessException ? 403 : (e is NotSupportedException ? 404 : 400);
-                responseData = e.InnerException?.Message ?? e.Message;
-            }
-            finally
-            {
-                var responseJson = JsonConvert.SerializeObject(new { status, data = responseData });
-                byte[] buffer = Encoding.UTF8.GetBytes(responseJson);
-                response.StatusCode = statusCode;
-                response.ContentType = "application/json";
-                response.ContentLength64 = buffer.Length;
-                response.OutputStream.Write(buffer, 0, buffer.Length);
-                response.Close();
+                Console.WriteLine($"[EZPlay.GameService] Error processing request: {ex.Message}");
+                var errorResponse = new { type = "Error", payload = ex.Message };
+                Send(JsonConvert.SerializeObject(errorResponse));
             }
         }
+
+        protected override void OnClose(CloseEventArgs e)
+        {
+            Console.WriteLine($"[EZPlay.GameService] Client disconnected: {ID}");
+        }
+
+        protected override void OnError(ErrorEventArgs e)
+        {
+            Console.WriteLine($"[EZPlay.GameService] Error: {e.Message}");
+        }
+    }
+
+    // Helper class to deserialize requests
+    public class ApiRequest
+    {
+        public string Action { get; set; }
+        public object Payload { get; set; }
     }
 }

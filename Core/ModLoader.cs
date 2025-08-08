@@ -6,15 +6,15 @@ namespace EZPlay.Core
 {
     public class ModLoader : UserMod2
     {
-        private static ApiServer _apiServer;
+        public static EventSocketServer EventServer { get; private set; }
 
         public override void OnLoad(Harmony harmony)
         {
             base.OnLoad(harmony);
+            ApiServer.Start();
 
-            // API服务器现在监听 /api/ 根路径
-            _apiServer = new ApiServer("http://localhost:8080/api/");
-            _apiServer.Start();
+            EventServer = new EventSocketServer("ws://0.0.0.0:8081");
+            EventServer.Start();
         }
     }
 }

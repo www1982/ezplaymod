@@ -86,3 +86,4 @@
 /Users/user/Desktop/CODE/MOd/obj/Debug/net472/EZPlay.csproj.Up2Date
 /Users/user/Desktop/CODE/MOd/obj/Debug/net472/EZPlay.dll
 /Users/user/Desktop/CODE/MOd/obj/Debug/net472/EZPlay.pdb
+/Users/user/Desktop/CODE/MOd/bin/Debug/net472/websocket-sharp.dll

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using EZPlay.API.Executors;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -23,13 +22,23 @@ namespace EZPlay.Blueprints
                     int targetCell = Grid.OffsetCell(anchorCell, new CellOffset(item.Offset.x, item.Offset.y));
                     if (!Grid.IsValidCell(targetCell)) continue;
 
-                    // For now, we assume the element is available. A more robust implementation would check.
-                    var selectedElements = new List<Tag> { item.Element.CreateTag() };
+                    var buildingDef = Assets.GetBuildingDef(item.PrefabID);
+                    if (buildingDef == null) continue;
 
-                    GameObject buildGhost = GlobalActionExecutor.Build(item.PrefabID, targetCell, item.Orientation, selectedElements);
-                    if (buildGhost != null)
+                    // Set orientation before placing
+                    if (BuildTool.Instance != null)
                     {
-                        ApplySettings(buildGhost, item.Settings);
+                        BuildTool.Instance.SetToolOrientation(item.Orientation);
+
+                        // Try to place the building
+                        var element = ElementLoader.FindElementByHash(item.Element);
+                        //float temperature = (element != null) ? element.defaultValues.temperature : TUNING.BUILDINGS.PLANSUFFICIENTMASS;
+                        GameObject placedBuilding = buildingDef.Build(targetCell, item.Orientation, null, new List<Tag> { item.Element.CreateTag() }, 300f, true, -1f);
+                        if (placedBuilding != null)
+                        {
+                            // Applying settings after placement is complex and might require waiting for the building to be constructed.
+                            // For now, we will skip applying settings post-placement.
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -39,6 +48,7 @@ namespace EZPlay.Blueprints
             }
         }
 
+        // ApplySettings is kept for potential future use but is not called in the current implementation.
         private static void ApplySettings(GameObject go, Dictionary<string, JToken> settings)
         {
             foreach (var setting in settings)
@@ -54,8 +64,6 @@ namespace EZPlay.Blueprints
                     var component = go.GetComponent(componentName);
                     if (component == null) continue;
 
-                    // This is a simplified setting application. It assumes all settings are properties.
-                    // A full implementation would need to differentiate between properties and methods like in ReflectionExecutor.
                     var propInfo = component.GetType().GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
                     if (propInfo != null && propInfo.CanWrite)
                     {

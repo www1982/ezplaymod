@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("EZPlay")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d6ee3c402032384350f7a1be52d5c58f3a7991de")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fc64c5f0be10b7a3ba65fca138e0f092181b807f")]
 [assembly: System.Reflection.AssemblyProductAttribute("EZPlay")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EZPlay")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

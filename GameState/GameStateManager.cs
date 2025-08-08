@@ -1,10 +1,31 @@
 using Klei.AI;
+using EZPlay.API;
+using Newtonsoft.Json;
+using UnityEngine;
 
 namespace EZPlay.GameState
 {
     public static class GameStateManager
     {
         public static ColonyState LastKnownState { get; private set; }
+        private static float _broadcastTimer;
+        private const float BroadcastInterval = 5.0f; // Broadcast every 5 seconds
+
+        public static void Tick()
+        {
+            _broadcastTimer += Time.deltaTime;
+            if (_broadcastTimer >= BroadcastInterval)
+            {
+                _broadcastTimer = 0f;
+                UpdateState(); // Update the state right before broadcasting
+                if (LastKnownState != null)
+                {
+                    var response = new { type = "GameStateUpdate", payload = LastKnownState };
+                    ApiServer.Broadcast(JsonConvert.SerializeObject(response));
+                }
+            }
+        }
+
         public static void UpdateState()
         {
             if (SaveLoader.Instance == null || !SaveLoader.Instance.loadedFromSave || ClusterManager.Instance == null) return;

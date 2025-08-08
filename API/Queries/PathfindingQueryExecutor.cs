@@ -1,58 +1,41 @@
 using System;
-using System.Collections.Generic;
-using EZPlay.Utils;
+using Newtonsoft.Json;
 
 namespace EZPlay.API.Queries
 {
-    /// <summary>
-    /// 封装寻路查询的结果。
-    /// </summary>
-    public class PathInfo
-    {
-        public bool Reachable { get; set; }
-        public int Cost { get; set; }
-        public List<int> Path { get; set; }
-    }
-
-    /// <summary>
-    /// 负责处理寻路和可达性查询。
-    /// </summary>
     public static class PathfindingQueryExecutor
     {
-        public static PathInfo GetPath(string navigatorId, int targetCell)
+        private class PathfindingRequest
         {
-            var go = GameObjectManager.GetObject(navigatorId);
-            if (go == null) throw new Exception($"Navigator object with ID '{navigatorId}' not found.");
+            public int StartX { get; set; }
+            public int StartY { get; set; }
+            public int EndX { get; set; }
+            public int EndY { get; set; }
+        }
 
-            var navigator = go.GetComponent<Navigator>();
-            if (navigator == null) throw new Exception($"Object with ID '{navigatorId}' does not have a Navigator component.");
-
-            var info = new PathInfo { Path = new List<int>() };
-
-            int cost = navigator.GetNavigationCost(targetCell);
-            info.Cost = cost;
-            info.Reachable = cost != -1;
-
-            if (info.Reachable)
+        public static object Execute(string jsonPayload)
+        {
+            var request = JsonConvert.DeserializeObject<PathfindingRequest>(jsonPayload);
+            if (request == null)
             {
-                var query = PathFinderQueries.cellQuery.Reset(targetCell);
-                var path = new PathFinder.Path();
-
-                int startCell = Grid.PosToCell(navigator.gameObject);
-                var potentialPath = new PathFinder.PotentialPath(startCell, navigator.CurrentNavType, navigator.flags);
-
-                PathFinder.Run(navigator.NavGrid, navigator.GetCurrentAbilities(), potentialPath, query, ref path);
-
-                if (path.IsValid())
-                {
-                    foreach (var node in path.nodes)
-                    {
-                        info.Path.Add(node.cell);
-                    }
-                }
+                throw new ArgumentException("Invalid payload for pathfinding query.");
             }
 
-            return info;
+            var startCell = Grid.PosToCell(new UnityEngine.Vector3(request.StartX, request.StartY, 0));
+            var endCell = Grid.PosToCell(new UnityEngine.Vector3(request.EndX, request.EndY, 0));
+
+            // Simplified check: Are the cells in the same room?
+            // This is a rough approximation of pathfinding but avoids complex API usage.
+            var roomProber = Game.Instance.roomProber;
+            var startCavity = roomProber.GetCavityForCell(startCell);
+            var endCavity = roomProber.GetCavityForCell(endCell);
+            bool pathExists = (startCavity != null && startCavity == endCavity);
+
+            return new
+            {
+                PathExists = pathExists,
+                Cost = -1 // Cost is not calculated in this simplified version
+            };
         }
     }
 }

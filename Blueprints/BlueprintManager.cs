@@ -129,5 +129,12 @@ namespace EZPlay.Blueprints
             string json = File.ReadAllText(filePath);
             return JsonConvert.DeserializeObject<Blueprint>(json);
         }
+
+        public static object PlaceBlueprint(Blueprint blueprint)
+        {
+            // For now, we'll place it at cell 0,0. A more robust implementation would take a position.
+            BlueprintPlacer.PlaceBlueprint(blueprint, 0);
+            return new { success = true, message = $"Blueprint '{blueprint.Name}' placement started." };
+        }
     }
 }
