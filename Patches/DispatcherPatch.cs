@@ -7,6 +7,9 @@ namespace EZPlay.Patches
     [HarmonyPatch(typeof(Game), "Update")]
     public class DispatcherPatch
     {
-        public static void Postfix() => MainThreadDispatcher.ProcessQueue();
+        public static void Postfix()
+        {
+            MainThreadDispatcher.ProcessQueue();
+        }
     }
 }

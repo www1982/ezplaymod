@@ -37,6 +37,10 @@ namespace EZPlay.API
                         return BlueprintManager.PlaceBlueprint(blueprint);
                     case "destroy_building":
                         return BuildingDestroyer.Execute(payloadString);
+                    case "/api/logistics/set_policy":
+                        return LogisticsExecutor.SetPolicy(payloadString);
+                    case "/api/logistics/remove_policy":
+                        return LogisticsExecutor.RemovePolicy(payloadString);
 
                     default:
                         throw new ArgumentException($"Unknown action: {action}");

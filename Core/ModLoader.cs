@@ -1,6 +1,9 @@
 using HarmonyLib;
 using EZPlay.API;
+using EZPlay.Logistics;
+using EZPlay.Utils;
 using KMod;
+using UnityEngine;
 
 namespace EZPlay.Core
 {
@@ -15,6 +18,8 @@ namespace EZPlay.Core
 
             EventServer = new EventSocketServer("ws://0.0.0.0:8081");
             EventServer.Start();
+
+            MainThreadDispatcher.OnUpdate += () => LogisticsManager.Tick(Time.deltaTime);
         }
     }
 }

@@ -11,6 +11,8 @@ namespace EZPlay.Utils
     {
         private static readonly Queue<System.Action> ExecutionQueue = new Queue<System.Action>();
 
+        public static event System.Action OnUpdate;
+
         public static Task<T> RunOnMainThread<T>(Func<T> func)
         {
             var tcs = new TaskCompletionSource<T>();
@@ -48,6 +50,8 @@ namespace EZPlay.Utils
                 lock (ExecutionQueue) { action = ExecutionQueue.Dequeue(); }
                 action.Invoke();
             }
+
+            OnUpdate?.Invoke();
         }
     }
 }

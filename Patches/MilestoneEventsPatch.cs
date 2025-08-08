@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using TUNING;
+using Klei.AI;
 
 namespace EZPlay.Patches
 {
@@ -28,10 +29,8 @@ namespace EZPlay.Patches
         public static void Postfix(Immigration __instance, GameObject duplicant)
         {
             var identity = duplicant.GetComponent<MinionIdentity>();
-            var traits = identity.modifiers.attributes.AttributeTable
-                .Where(p => p.Attribute is Klei.AI.Trait)
-                .Select(p => p.Attribute.Id)
-                .ToList();
+            var traitsComponent = identity.GetComponent<Traits>();
+            var traits = traitsComponent.GetTraitIds();
 
             ModLoader.EventServer.BroadcastEvent("Milestone.NewDuplicantPrinted", new
             {
