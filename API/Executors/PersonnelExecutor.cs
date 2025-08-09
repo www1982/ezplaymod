@@ -71,17 +71,31 @@ namespace EZPlay.API.Executors
 
         private static ExecutionResult SetDuplicantPriorities(string duplicantId, JObject priorities)
         {
+            var result = TrySetDuplicantPriorities(duplicantId, priorities);
+            if (!result.Success)
+            {
+                // Re-throw as an exception to maintain original behavior for single-set API
+                throw new ApiException(result.StatusCode, result.Message, result.Data);
+            }
+            return result;
+        }
+
+        private static ExecutionResult TrySetDuplicantPriorities(string duplicantId, JObject priorities)
+        {
             var minionIdentity = Components.LiveMinionIdentities.Items.FirstOrDefault(m => m.name == duplicantId || m.GetProperName() == duplicantId);
             if (minionIdentity == null)
             {
-                throw new ApiException(404, $"Duplicant with id '{duplicantId}' not found.", new { duplicant_id = duplicantId });
+                return new ExecutionResult { Success = false, StatusCode = 404, Message = $"Duplicant with id '{duplicantId}' not found.", Data = new { duplicant_id = duplicantId } };
             }
 
             var choreConsumer = minionIdentity.GetComponent<ChoreConsumer>();
             if (choreConsumer == null)
             {
-                throw new ApiException(500, "ChoreConsumer component not found on duplicant.", new { duplicant_id = duplicantId });
+                return new ExecutionResult { Success = false, StatusCode = 500, Message = "ChoreConsumer component not found on duplicant.", Data = new { duplicant_id = duplicantId } };
             }
+
+            var appliedPriorities = new Dictionary<string, string>();
+            var failedPriorities = new Dictionary<string, string>();
 
             foreach (var property in priorities.Properties())
             {
@@ -92,20 +106,28 @@ namespace EZPlay.API.Executors
                 if (choreGroup == null)
                 {
                     Logger.Warning($"Chore group '{choreGroupName}' not found. Skipping.");
+                    failedPriorities[choreGroupName] = "Chore group not found.";
                     continue;
                 }
 
                 if (PriorityMap.TryGetValue(priorityString, out var priorityValue))
                 {
                     choreConsumer.SetPersonalPriority(choreGroup, priorityValue.Item2);
+                    appliedPriorities[choreGroupName] = priorityString;
                 }
                 else
                 {
                     Logger.Warning($"Unknown priority value '{priorityString}' for chore group '{choreGroupName}'. Skipping.");
+                    failedPriorities[choreGroupName] = $"Unknown priority value '{priorityString}'.";
                 }
             }
 
-            return new ExecutionResult { Success = true, Message = $"Priorities set for duplicant '{duplicantId}'.", Data = new { duplicant_id = duplicantId } };
+            return new ExecutionResult
+            {
+                Success = true,
+                Message = $"Priorities set for duplicant '{duplicantId}'.",
+                Data = new { duplicant_id = duplicantId, applied = appliedPriorities, failed = failedPriorities }
+            };
         }
 
         private static ExecutionResult BatchSetPriorities(JObject payload)
@@ -115,50 +137,46 @@ namespace EZPlay.API.Executors
                 throw new ApiException(400, "Payload must contain a 'requests' array.");
             }
 
-            var results = new List<object>();
+            var results = new List<ExecutionResult>();
             foreach (var requestToken in requests)
             {
-                if (requestToken is not JObject request) continue;
-
-                string duplicantId = null;
-                try
+                if (requestToken is not JObject request)
                 {
-                    var duplicantIdToken = request["duplicant_id"];
-                    if (duplicantIdToken == null || duplicantIdToken.Type == JTokenType.Null)
-                    {
-                        throw new ApiException(400, "Request must contain a 'duplicant_id' field.");
-                    }
-                    duplicantId = duplicantIdToken.ToString();
-
-                    if (request["priorities"] is not JObject priorities)
-                    {
-                        throw new ApiException(400, "Request must contain a 'priorities' object.", new { duplicant_id = duplicantId });
-                    }
-
-                    var result = SetDuplicantPriorities(duplicantId, priorities);
-                    results.Add(result);
+                    results.Add(new ExecutionResult { Success = false, StatusCode = 400, Message = "Invalid request item: not a JSON object." });
+                    continue;
                 }
-                catch (ApiException ex)
+
+                var duplicantIdToken = request["duplicant_id"];
+                if (duplicantIdToken == null || duplicantIdToken.Type == JTokenType.Null)
                 {
-                    results.Add(new ExecutionResult { Success = false, Message = ex.Message, Data = ex.Data });
+                    results.Add(new ExecutionResult { Success = false, StatusCode = 400, Message = "Request must contain a 'duplicant_id' field." });
+                    continue;
                 }
+                var duplicantId = duplicantIdToken.ToString();
+
+                if (request["priorities"] is not JObject priorities)
+                {
+                    results.Add(new ExecutionResult { Success = false, StatusCode = 400, Message = "Request must contain a 'priorities' object.", Data = new { duplicant_id = duplicantId } });
+                    continue;
+                }
+
+                var result = TrySetDuplicantPriorities(duplicantId, priorities);
+                results.Add(result);
             }
 
-            var hasFailures = results.OfType<ExecutionResult>().Any(r => !r.Success);
-            var hasSuccesses = results.OfType<ExecutionResult>().Any(r => r.Success);
+            var hasFailures = results.Any(r => !r.Success);
+            var hasSuccesses = results.Any(r => r.Success);
 
-            var overallMessage = "Batch priority update completed.";
-            if (hasFailures && hasSuccesses)
+            var overallStatus = "partial_success";
+            if (!hasFailures) overallStatus = "success";
+            if (!hasSuccesses) overallStatus = "failure";
+
+            return new ExecutionResult
             {
-                overallMessage = "Batch priority update completed with some failures.";
-            }
-            else if (hasFailures && !hasSuccesses)
-            {
-                overallMessage = "Batch priority update failed for all requests.";
-            }
-
-
-            return new ExecutionResult { Success = !hasFailures, Message = overallMessage, Data = results };
+                Success = !hasFailures,
+                Message = $"Batch priority update completed with status: {overallStatus}.",
+                Data = new { status = overallStatus, results = results }
+            };
         }
 
         private static ExecutionResult LearnSkill(JObject payload)

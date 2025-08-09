@@ -26,9 +26,16 @@ namespace EZPlay.API
 
                 // All other actions require a JObject payload.
                 JObject jObjectPayload = null;
-                if (payload is JObject)
+                if (payload is string sPayload && sPayload.TrimStart().StartsWith("{"))
                 {
-                    jObjectPayload = (JObject)payload;
+                    try
+                    {
+                        jObjectPayload = JObject.Parse(sPayload);
+                    }
+                    catch (JsonReaderException)
+                    {
+                        return CreateResponse(request, "error", $"Action '{action}' requires a valid JSON object payload, but received an invalid JSON string.");
+                    }
                 }
                 else if (payload is string s)
                 {
