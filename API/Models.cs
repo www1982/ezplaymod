@@ -9,7 +9,7 @@ namespace EZPlay.API.Models
         public string Action { get; set; }
 
         [JsonProperty("payload")]
-        public JObject Payload { get; set; }
+        public string Payload { get; set; }
 
         [JsonProperty("requestId")]
         public string RequestId { get; set; }
@@ -28,6 +28,28 @@ namespace EZPlay.API.Models
 
         [JsonProperty("requestId", NullValueHandling = NullValueHandling.Ignore)]
         public string RequestId { get; set; }
+
+        public static ApiResponse Error(string action, string message, string stackTrace, string requestId)
+        {
+            return new ApiResponse
+            {
+                Type = action + ".Error",
+                Status = "error",
+                Payload = new { message, stackTrace },
+                RequestId = requestId
+            };
+        }
+
+        public static ApiResponse ParseError(string message, string requestId)
+        {
+            return new ApiResponse
+            {
+                Type = "Request.ParseError",
+                Status = "error",
+                Payload = new { message = "Failed to parse incoming request.", error = message },
+                RequestId = requestId
+            };
+        }
     }
     public class ExecutionResult
     {

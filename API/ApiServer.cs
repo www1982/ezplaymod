@@ -114,56 +114,44 @@ namespace EZPlay.API
                 return;
             }
 
-            string requestId = null;
+            ApiRequest request = null;
             try
             {
-                var request = JsonConvert.DeserializeObject<ApiRequest>(e.Data);
+                request = JsonConvert.DeserializeObject<ApiRequest>(e.Data);
                 if (request == null || string.IsNullOrEmpty(request.Action))
                 {
                     throw new ApiException(400, "Invalid request format. 'Action' is required.");
                 }
 
-                // Store requestId for use in the continuation
-                requestId = request.RequestId;
+                var requestId = request.RequestId;
 
                 var task = MainThreadDispatcher.RunOnMainThread(() =>
                 {
                     var handler = new RequestHandler();
-                    // We pass the original request object to the handler
                     return handler.HandleRequest(request);
                 });
 
                 task.ContinueWith(t =>
                 {
-                    ApiResponse response;
                     if (t.IsFaulted)
                     {
-                        var ex = t.Exception.InnerException ?? t.Exception;
+                        var ex = t.Exception?.InnerException ?? t.Exception;
                         Logger.Error($"Error handling action '{request.Action}': {ex.Message}\n{ex.StackTrace}");
-                        response = new ApiResponse
-                        {
-                            Type = request.Action + ".Error",
-                            Status = "error",
-                            Payload = new { message = ex.Message, stackTrace = ex.StackTrace },
-                            RequestId = requestId // Use the stored requestId
-                        };
+                        var errorResponse = ApiResponse.Error(request.Action, ex.Message, ex.StackTrace, requestId);
+                        Send(JsonConvert.SerializeObject(errorResponse));
                     }
                     else
                     {
-                        // The handler now returns a complete ApiResponse
-                        response = t.Result;
-                        // Ensure the correct response type and status are set for success
-                        response.Type = request.Action + ".Response";
-                        response.Status = "success";
-                        response.RequestId = requestId; // Use the stored requestId
+                        var response = t.Result;
+                        response.RequestId = requestId;
+                        Send(JsonConvert.SerializeObject(response));
                     }
-                    Send(JsonConvert.SerializeObject(response));
                 });
             }
             catch (Exception ex)
             {
                 Logger.Error($"Failed to parse request: {ex.Message}\n{e.Data}");
-                // Try to extract requestId from the raw JSON for error reporting
+                string requestId = null;
                 try
                 {
                     var jObject = JObject.Parse(e.Data);
@@ -171,16 +159,10 @@ namespace EZPlay.API
                 }
                 catch
                 {
-                    // Ignore if parsing fails, requestId will be null
+                    // Ignore if parsing fails
                 }
 
-                var errorResponse = new ApiResponse
-                {
-                    Type = "Request.ParseError",
-                    Status = "error",
-                    Payload = new { message = "Failed to parse incoming request.", error = ex.Message },
-                    RequestId = requestId
-                };
+                var errorResponse = ApiResponse.ParseError(ex.Message, requestId);
                 Send(JsonConvert.SerializeObject(errorResponse));
             }
         }

@@ -25,7 +25,24 @@ namespace EZPlay.API
                 }
 
                 // All other actions require a JObject payload.
-                if (!(payload is JObject jObjectPayload))
+                JObject jObjectPayload = null;
+                if (payload is JObject)
+                {
+                    jObjectPayload = (JObject)payload;
+                }
+                else if (payload is string s)
+                {
+                    try
+                    {
+                        jObjectPayload = JObject.Parse(s);
+                    }
+                    catch (JsonReaderException)
+                    {
+                        return CreateResponse(request, "error", $"Action '{action}' requires a valid JSON object payload, but received a non-JSON string.");
+                    }
+                }
+
+                if (jObjectPayload == null)
                 {
                     return CreateResponse(request, "error", $"Action '{action}' requires a valid JObject payload.");
                 }
@@ -96,11 +113,11 @@ namespace EZPlay.API
                 }
 
                 // Check if the result is already a complete response
-                if (result is JObject jobj && jobj.TryGetValue("status", StringComparison.OrdinalIgnoreCase, out _))
+                if (result is JObject resultJObject && resultJObject.TryGetValue("status", StringComparison.OrdinalIgnoreCase, out _))
                 {
                     // If it's a pre-formatted response, just add the request ID and return it as-is.
                     // This is useful for executors that return complex, custom-structured responses.
-                    var response = jobj.ToObject<ApiResponse>();
+                    var response = resultJObject.ToObject<ApiResponse>();
                     response.RequestId = request.RequestId;
                     return response;
                 }
