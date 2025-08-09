@@ -13,7 +13,7 @@ namespace EZPlay.Patches
         {
             MainThreadDispatcher.ProcessQueue();
 
-            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent(
+            EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent(
                 "Simulation.Tick",
                 new
                 {

@@ -9,7 +9,7 @@ namespace EZPlay.Patches
     {
         public static void Postfix(Tech tech)
         {
-            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("ResearchComplete", new
+            EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("ResearchComplete", new
             {
                 TechId = tech.Id,
                 TechName = tech.Name

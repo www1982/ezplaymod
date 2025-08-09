@@ -27,7 +27,7 @@ namespace EZPlay.Blueprints
 
     public class BlueprintPlacerInstance : MonoBehaviour
     {
-        private static readonly EZPlay.Core.Logger logger = ServiceLocator.Resolve<EZPlay.Core.Logger>();
+        private static readonly EZPlay.Core.Logger logger = EZPlay.Core.ServiceContainer.Resolve<EZPlay.Core.Logger>();
         private enum DeploymentPhase
         {
             NotStarted,

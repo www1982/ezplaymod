@@ -1,3 +1,4 @@
+using EZPlay.Core.Interfaces;
 using UnityEngine;
 
 namespace EZPlay.Core
@@ -10,7 +11,7 @@ namespace EZPlay.Core
         ERROR
     }
 
-    public class Logger
+    public class Logger : EZPlay.Core.Interfaces.ILogger
     {
         public static LogLevel CurrentLogLevel { get; set; } = LogLevel.INFO;
 

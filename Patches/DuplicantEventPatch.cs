@@ -9,7 +9,7 @@ namespace EZPlay.Patches
     {
         public static void Postfix(MinionIdentity __instance)
         {
-            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("DuplicantDeath", new
+            EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("DuplicantDeath", new
             {
                 DuplicantName = __instance.name
             });

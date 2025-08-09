@@ -14,7 +14,7 @@ namespace EZPlay.API.Executors
 {
     public static class PersonnelExecutor
     {
-        private static readonly EZPlay.Core.Logger Logger = ServiceLocator.Resolve<EZPlay.Core.Logger>();
+        private static readonly EZPlay.Core.Logger Logger = EZPlay.Core.ServiceContainer.Resolve<EZPlay.Core.Logger>();
         // Priority mapping from string to game enum and value
         private static readonly Dictionary<string, (PriorityScreen.PriorityClass, int)> PriorityMap =
             new Dictionary<string, (PriorityScreen.PriorityClass, int)>(StringComparer.OrdinalIgnoreCase)

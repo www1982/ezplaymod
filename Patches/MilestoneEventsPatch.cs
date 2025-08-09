@@ -15,7 +15,7 @@ namespace EZPlay.Patches
     {
         public static void Postfix(Research __instance, Tech tech)
         {
-            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("Milestone.ResearchComplete", new
+            EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("Milestone.ResearchComplete", new
             {
                 TechId = tech.Id,
                 TechName = tech.Name
@@ -33,7 +33,7 @@ namespace EZPlay.Patches
             var traitsComponent = identity.GetComponent<Traits>();
             var traits = traitsComponent.GetTraitIds();
 
-            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("Milestone.NewDuplicantPrinted", new
+            EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("Milestone.NewDuplicantPrinted", new
             {
                 Name = identity.GetProperName(),
                 Traits = traits

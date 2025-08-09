@@ -7,10 +7,11 @@ using System.Threading;
 using EZPlay.Core;
 using EZPlay.API.Models;
 using EZPlay.GameState;
+using EZPlay.Core.Interfaces;
 
 namespace EZPlay.API
 {
-    public class EventSocketServer
+    public class EventSocketServer : IEventBroadcaster
     {
         private readonly WebSocketServer _server;
 

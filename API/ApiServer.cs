@@ -76,7 +76,7 @@ namespace EZPlay.API
 
     public class GameService : WebSocketBehavior
     {
-        private static readonly EZPlay.Core.Logger Logger = ServiceLocator.Resolve<EZPlay.Core.Logger>();
+        private static readonly EZPlay.Core.Logger Logger = EZPlay.Core.ServiceContainer.Resolve<EZPlay.Core.Logger>();
         protected override void OnOpen()
         {
             Console.WriteLine($"[EZPlay.GameService] Client connected: {ID}");

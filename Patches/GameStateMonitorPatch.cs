@@ -16,7 +16,7 @@ namespace EZPlay.Patches
             // GameStateManager.Tick handles its own timing for updates and broadcasts.
             GameStateManager.Tick();
 
-            var eventServer = ServiceLocator.Resolve<EventSocketServer>();
+            var eventServer = EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>();
             if (eventServer == null) return;
 
             var tickPayload = new JObject
