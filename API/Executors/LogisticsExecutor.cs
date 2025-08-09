@@ -1,4 +1,6 @@
 using EZPlay.Logistics;
+using EZPlay.API.Models;
+using EZPlay.API.Exceptions;
 using Newtonsoft.Json;
 using System;
 
@@ -6,22 +8,32 @@ namespace EZPlay.API.Executors
 {
     public static class LogisticsExecutor
     {
-        public static object SetPolicy(string jsonPayload)
+        private static readonly EZPlay.Core.Logger logger = new EZPlay.Core.Logger("LogisticsExecutor");
+        public static ExecutionResult SetPolicy(string jsonPayload)
         {
             if (string.IsNullOrEmpty(jsonPayload))
             {
-                return new { success = false, message = "Payload cannot be null." };
+                throw new ApiException(400, "Payload cannot be null or empty.");
             }
 
             try
             {
                 var policy = JsonConvert.DeserializeObject<LogisticsPolicy>(jsonPayload);
+                if (policy == null || string.IsNullOrEmpty(policy.policy_id))
+                {
+                    throw new ApiException(400, "Invalid policy format. 'policy_id' is required.");
+                }
+
                 LogisticsManager.RegisterPolicy(policy);
-                return new { success = true, policy_id = policy.policy_id };
+                return new ExecutionResult { Success = true, Message = $"Policy '{policy.policy_id}' registered.", Data = new { policy_id = policy.policy_id } };
+            }
+            catch (JsonException ex)
+            {
+                throw new ApiException(400, $"Invalid JSON format: {ex.Message}");
             }
             catch (Exception e)
             {
-                return new { success = false, message = e.Message };
+                throw new ApiException(500, $"An unexpected error occurred: {e.Message}");
             }
         }
 
@@ -30,29 +42,31 @@ namespace EZPlay.API.Executors
             public string policy_id { get; set; }
         }
 
-        public static object RemovePolicy(string jsonPayload)
+        public static ExecutionResult RemovePolicy(string jsonPayload)
         {
             if (string.IsNullOrEmpty(jsonPayload))
             {
-                return new { success = false, message = "Payload cannot be null." };
+                throw new ApiException(400, "Payload cannot be null or empty.");
             }
 
             try
             {
                 var data = JsonConvert.DeserializeObject<RemovePolicyPayload>(jsonPayload);
-                string policyId = data.policy_id;
-
-                if (string.IsNullOrEmpty(policyId))
+                if (data == null || string.IsNullOrEmpty(data.policy_id))
                 {
-                    return new { success = false, message = "policy_id cannot be null or empty." };
+                    throw new ApiException(400, "Invalid payload. 'policy_id' is required.");
                 }
 
-                LogisticsManager.UnregisterPolicy(policyId);
-                return new { success = true, policy_id = policyId };
+                LogisticsManager.UnregisterPolicy(data.policy_id);
+                return new ExecutionResult { Success = true, Message = $"Policy '{data.policy_id}' unregistered.", Data = new { policy_id = data.policy_id } };
+            }
+            catch (JsonException ex)
+            {
+                throw new ApiException(400, $"Invalid JSON format: {ex.Message}");
             }
             catch (Exception e)
             {
-                return new { success = false, message = e.Message };
+                throw new ApiException(500, $"An unexpected error occurred: {e.Message}");
             }
         }
     }

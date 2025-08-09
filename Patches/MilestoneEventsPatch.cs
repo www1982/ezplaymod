@@ -1,6 +1,7 @@
 using HarmonyLib;
 using EZPlay.Core;
 using System.Collections.Generic;
+using EZPlay.API;
 using System.Linq;
 using UnityEngine;
 using TUNING;
@@ -14,7 +15,7 @@ namespace EZPlay.Patches
     {
         public static void Postfix(Research __instance, Tech tech)
         {
-            ModLoader.EventServer.BroadcastEvent("Milestone.ResearchComplete", new
+            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("Milestone.ResearchComplete", new
             {
                 TechId = tech.Id,
                 TechName = tech.Name
@@ -32,7 +33,7 @@ namespace EZPlay.Patches
             var traitsComponent = identity.GetComponent<Traits>();
             var traits = traitsComponent.GetTraitIds();
 
-            ModLoader.EventServer.BroadcastEvent("Milestone.NewDuplicantPrinted", new
+            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("Milestone.NewDuplicantPrinted", new
             {
                 Name = identity.GetProperName(),
                 Traits = traits

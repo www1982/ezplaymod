@@ -1,4 +1,5 @@
 using System;
+using EZPlay.API.Models;
 using EZPlay.API.Executors;
 using EZPlay.API.Queries;
 using EZPlay.Blueprints;
@@ -10,53 +11,123 @@ namespace EZPlay.API
 {
     public class RequestHandler
     {
-        public object HandleRequest(string action, object payload)
+        public ApiResponse HandleRequest(ApiRequest request)
         {
-            if (payload is JObject jObjectPayload)
+            try
             {
-                var payloadString = jObjectPayload.ToString();
-                switch (action)
+                var action = request.Action;
+                var payload = request.Payload;
+
+                // Handle actions that don't require a payload first.
+                if (action == "state")
                 {
-                    // Queries
-                    case "find_objects":
-                        return FindObjectsQueryExecutor.Execute(payloadString);
-                    case "grid":
-                        return GridQueryExecutor.Execute(payloadString);
-                    case "pathfinding":
-                        return PathfindingQueryExecutor.Execute(payloadString);
-                    case "chore_status":
-                        return ChoreStatusQueryExecutor.Execute(payloadString);
-
-                    // Executors
-                    case "execute_global_action":
-                        return GlobalActionExecutor.Execute(payloadString);
-                    case "execute_reflection":
-                        return ReflectionExecutor.Execute(payloadString);
-                    case "place_blueprint":
-                        var blueprint = JsonConvert.DeserializeObject<Blueprint>(payloadString);
-                        return BlueprintManager.PlaceBlueprint(blueprint);
-                    case "destroy_building":
-                        return BuildingDestroyer.Execute(payloadString);
-                    case "/api/logistics/set_policy":
-                        return LogisticsExecutor.SetPolicy(payloadString);
-                    case "/api/logistics/remove_policy":
-                        return LogisticsExecutor.RemovePolicy(payloadString);
-                    case "/api/blueprints/create_from_game":
-                        return BlueprintExecutor.CreateFromGame(payloadString);
-
-                    default:
-                        throw new ArgumentException($"Unknown action: {action}");
+                    return CreateResponse(request, "success", GameStateManager.LastKnownState);
                 }
-            }
 
-            // Handle cases where payload is not a JObject or is null
-            switch (action)
-            {
-                case "state":
-                    return GameStateManager.LastKnownState;
-                default:
-                    throw new ArgumentException($"Action '{action}' requires a valid payload.");
+                // All other actions require a JObject payload.
+                if (!(payload is JObject jObjectPayload))
+                {
+                    return CreateResponse(request, "error", $"Action '{action}' requires a valid JObject payload.");
+                }
+
+                object result;
+                if (action.StartsWith("Duplicant."))
+                {
+                    result = PersonnelExecutor.HandleDuplicantAction(action, jObjectPayload);
+                }
+                else if (action.StartsWith("Schedule."))
+                {
+                    result = PersonnelExecutor.HandleScheduleAction(action, jObjectPayload);
+                }
+                else if (action.StartsWith("PrintingPod."))
+                {
+                    result = PersonnelExecutor.HandlePrintingPodAction(action, jObjectPayload);
+                }
+                else if (action.StartsWith("Research."))
+                {
+                    result = PersonnelExecutor.HandleResearchAction(action, jObjectPayload);
+                }
+                else
+                {
+                    var payloadString = jObjectPayload.ToString();
+                    switch (action)
+                    {
+                        // Queries
+                        case "find_objects":
+                            result = FindObjectsQueryExecutor.Execute(payloadString);
+                            break;
+                        case "grid":
+                            result = GridQueryExecutor.Execute(payloadString);
+                            break;
+                        case "pathfinding":
+                            result = PathfindingQueryExecutor.Execute(payloadString);
+                            break;
+                        case "chore_status":
+                            result = ChoreStatusQueryExecutor.Execute(payloadString);
+                            break;
+
+                        // Executors
+                        case "execute_global_action":
+                            result = GlobalActionExecutor.Execute(payloadString);
+                            break;
+                        case "execute_reflection":
+                            result = ReflectionExecutor.Execute(payloadString);
+                            break;
+                        case "place_blueprint":
+                            var blueprint = JsonConvert.DeserializeObject<Blueprint>(payloadString);
+                            result = BlueprintManager.PlaceBlueprint(blueprint);
+                            break;
+                        case "destroy_building":
+                            result = BuildingDestroyer.Execute(payloadString);
+                            break;
+                        case "/api/logistics/set_policy":
+                            result = LogisticsExecutor.SetPolicy(payloadString);
+                            break;
+                        case "/api/logistics/remove_policy":
+                            result = LogisticsExecutor.RemovePolicy(payloadString);
+                            break;
+                        case "/api/blueprints/create_from_game":
+                            result = BlueprintExecutor.CreateFromGame(payloadString);
+                            break;
+
+                        default:
+                            return CreateResponse(request, "error", $"Unknown action received: {action}");
+                    }
+                }
+
+                // Check if the result is already a complete response
+                if (result is JObject jobj && jobj.TryGetValue("status", StringComparison.OrdinalIgnoreCase, out _))
+                {
+                    // If it's a pre-formatted response, just add the request ID and return it as-is.
+                    // This is useful for executors that return complex, custom-structured responses.
+                    var response = jobj.ToObject<ApiResponse>();
+                    response.RequestId = request.RequestId;
+                    return response;
+                }
+
+                return CreateResponse(request, "success", result);
             }
+            catch (Exception ex)
+            {
+                return new ApiResponse
+                {
+                    Type = request.Action + ".Response",
+                    RequestId = request.RequestId,
+                    Status = "error",
+                    Payload = new { message = ex.Message, stackTrace = ex.StackTrace }
+                };
+            }
+        }
+
+        private ApiResponse CreateResponse(ApiRequest request, string status, object payload)
+        {
+            return new ApiResponse
+            {
+                Type = request.Action + ".Response",
+                RequestId = request.RequestId,
+                Status = status,
+                Payload = payload
+            };
         }
     }
 }

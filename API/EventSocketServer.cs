@@ -1,8 +1,11 @@
 using WebSocketSharp;
 using WebSocketSharp.Server;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Threading;
+using EZPlay.Core;
+using EZPlay.API.Models;
 using EZPlay.GameState;
 
 namespace EZPlay.API
@@ -46,13 +49,41 @@ namespace EZPlay.API
             var json = JsonConvert.SerializeObject(gameEvent);
             _server.WebSocketServices["/"].Sessions.Broadcast(json);
         }
+
+        public void Broadcast(string message)
+        {
+            _server.WebSocketServices["/"].Sessions.Broadcast(message);
+        }
     }
 
     public class EventSocketBehaviour : WebSocketBehavior
     {
+        protected override void OnOpen()
+        {
+            var versionPayload = new JObject
+            {
+                ["version"] = ModLoader.ApiVersion
+            };
+            var versionMessage = new JObject
+            {
+                ["type"] = "Api.Version",
+                ["payload"] = versionPayload
+            };
+            Send(versionMessage.ToString());
+        }
+
         public void Broadcast(string data)
         {
             Sessions.Broadcast(data);
         }
+
+        protected override void OnMessage(MessageEventArgs e)
+        {
+            var request = JsonConvert.DeserializeObject<ApiRequest>(e.Data);
+            var handler = new RequestHandler();
+            var response = handler.HandleRequest(request);
+            Send(JsonConvert.SerializeObject(response));
+        }
     }
+
 }

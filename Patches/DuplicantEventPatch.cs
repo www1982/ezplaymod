@@ -1,6 +1,7 @@
 using HarmonyLib;
 using EZPlay.Core;
 
+using EZPlay.API;
 namespace EZPlay.Patches
 {
     [HarmonyPatch(typeof(MinionIdentity), "OnDeath")]
@@ -8,9 +9,7 @@ namespace EZPlay.Patches
     {
         public static void Postfix(MinionIdentity __instance)
         {
-            if (ModLoader.EventServer == null) return;
-
-            ModLoader.EventServer.BroadcastEvent("DuplicantDeath", new
+            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("DuplicantDeath", new
             {
                 DuplicantName = __instance.name
             });

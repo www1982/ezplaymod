@@ -2,9 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
+using EZPlay.API.Exceptions;
+using EZPlay.API.Models;
 using EZPlay.GameState;
+using EZPlay.Core;
 using EZPlay.Utils;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using WebSocketSharp;
 using WebSocketSharp.Server;
 
@@ -72,9 +76,22 @@ namespace EZPlay.API
 
     public class GameService : WebSocketBehavior
     {
+        private static readonly EZPlay.Core.Logger Logger = ServiceLocator.Resolve<EZPlay.Core.Logger>();
         protected override void OnOpen()
         {
             Console.WriteLine($"[EZPlay.GameService] Client connected: {ID}");
+
+            var versionPayload = new JObject
+            {
+                ["version"] = ModLoader.ApiVersion
+            };
+            var versionMessage = new JObject
+            {
+                ["type"] = "Api.Version",
+                ["payload"] = versionPayload
+            };
+            Send(versionMessage.ToString());
+
             // Send initial state
             var initialState = GameStateManager.LastKnownState;
             var response = new { type = "GameState", payload = initialState };
@@ -86,46 +103,84 @@ namespace EZPlay.API
             if (!ApiServer.IsClientAllowed(Context.UserEndPoint.Address))
             {
                 Console.WriteLine($"[EZPlay.GameService] Unauthorized request from {Context.UserEndPoint.Address}");
-                var errorResponse = new { type = "Error", payload = "Unauthorized IP address." };
+                var errorResponse = new ApiResponse
+                {
+                    Type = "Error",
+                    Status = "error",
+                    Payload = "Unauthorized IP address."
+                };
                 Send(JsonConvert.SerializeObject(errorResponse));
                 Context.WebSocket.Close();
                 return;
             }
 
+            string requestId = null;
             try
             {
                 var request = JsonConvert.DeserializeObject<ApiRequest>(e.Data);
                 if (request == null || string.IsNullOrEmpty(request.Action))
                 {
-                    throw new ArgumentException("Invalid request format.");
+                    throw new ApiException(400, "Invalid request format. 'Action' is required.");
                 }
 
-                // Use the dispatcher to run the logic on the main game thread
+                // Store requestId for use in the continuation
+                requestId = request.RequestId;
+
                 var task = MainThreadDispatcher.RunOnMainThread(() =>
                 {
                     var handler = new RequestHandler();
-                    return handler.HandleRequest(request.Action, request.Payload);
+                    // We pass the original request object to the handler
+                    return handler.HandleRequest(request);
                 });
 
-                // Asynchronously wait for the result and send it back
                 task.ContinueWith(t =>
                 {
+                    ApiResponse response;
                     if (t.IsFaulted)
                     {
-                        var errorResponse = new { type = "Error", payload = t.Exception.InnerException.Message };
-                        Send(JsonConvert.SerializeObject(errorResponse));
+                        var ex = t.Exception.InnerException ?? t.Exception;
+                        Logger.Error($"Error handling action '{request.Action}': {ex.Message}\n{ex.StackTrace}");
+                        response = new ApiResponse
+                        {
+                            Type = request.Action + ".Error",
+                            Status = "error",
+                            Payload = new { message = ex.Message, stackTrace = ex.StackTrace },
+                            RequestId = requestId // Use the stored requestId
+                        };
                     }
                     else
                     {
-                        var response = new { type = request.Action + "Response", payload = t.Result };
-                        Send(JsonConvert.SerializeObject(response));
+                        // The handler now returns a complete ApiResponse
+                        response = t.Result;
+                        // Ensure the correct response type and status are set for success
+                        response.Type = request.Action + ".Response";
+                        response.Status = "success";
+                        response.RequestId = requestId; // Use the stored requestId
                     }
+                    Send(JsonConvert.SerializeObject(response));
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[EZPlay.GameService] Error processing request: {ex.Message}");
-                var errorResponse = new { type = "Error", payload = ex.Message };
+                Logger.Error($"Failed to parse request: {ex.Message}\n{e.Data}");
+                // Try to extract requestId from the raw JSON for error reporting
+                try
+                {
+                    var jObject = JObject.Parse(e.Data);
+                    requestId = jObject.Value<string>("requestId");
+                }
+                catch
+                {
+                    // Ignore if parsing fails, requestId will be null
+                }
+
+                var errorResponse = new ApiResponse
+                {
+                    Type = "Request.ParseError",
+                    Status = "error",
+                    Payload = new { message = "Failed to parse incoming request.", error = ex.Message },
+                    RequestId = requestId
+                };
                 Send(JsonConvert.SerializeObject(errorResponse));
             }
         }
@@ -141,10 +196,4 @@ namespace EZPlay.API
         }
     }
 
-    // Helper class to deserialize requests
-    public class ApiRequest
-    {
-        public string Action { get; set; }
-        public object Payload { get; set; }
-    }
 }

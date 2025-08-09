@@ -1,6 +1,7 @@
 using HarmonyLib;
 using EZPlay.Core;
 using UnityEngine;
+using EZPlay.API;
 
 namespace EZPlay.Patches
 {
@@ -11,7 +12,7 @@ namespace EZPlay.Patches
         public static void Postfix(Geyser __instance, Geyser.States old_state, Geyser.States new_state)
         {
             var position = __instance.transform.position;
-            ModLoader.EventServer.BroadcastEvent("StateChange.GeyserStateChanged", new
+            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("StateChange.GeyserStateChanged", new
             {
                 GeyserName = __instance.GetProperName(),
                 Position = new { X = position.x, Y = position.y },

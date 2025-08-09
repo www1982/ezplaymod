@@ -1,6 +1,7 @@
 using HarmonyLib;
 using EZPlay.Core;
 using UnityEngine;
+using EZPlay.API;
 
 namespace EZPlay.Patches
 {
@@ -28,7 +29,7 @@ namespace EZPlay.Patches
 
             if (eventType != null)
             {
-                ModLoader.EventServer.BroadcastEvent(eventType, new { DuplicantName = victimName });
+                ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent(eventType, new { DuplicantName = victimName });
             }
         }
     }
@@ -41,7 +42,7 @@ namespace EZPlay.Patches
         {
             var building = __instance.gameObject;
             var position = building.transform.position;
-            ModLoader.EventServer.BroadcastEvent("Alert.BuildingOverheating", new
+            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("Alert.BuildingOverheating", new
             {
                 BuildingName = building.GetProperName(),
                 Position = new { X = position.x, Y = position.y }

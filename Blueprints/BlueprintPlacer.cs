@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using EZPlay.Core;
 using Klei.AI;
 using UnityEngine;
 
@@ -26,6 +27,7 @@ namespace EZPlay.Blueprints
 
     public class BlueprintPlacerInstance : MonoBehaviour
     {
+        private static readonly EZPlay.Core.Logger logger = ServiceLocator.Resolve<EZPlay.Core.Logger>();
         private enum DeploymentPhase
         {
             NotStarted,
@@ -96,7 +98,7 @@ namespace EZPlay.Blueprints
         {
             if (PlanScreen.Instance == null || ToolMenu.Instance == null)
             {
-                Debug.LogWarning("[BlueprintPlacer] PlanScreen or ToolMenu not available. Aborting.");
+                logger.Warning("PlanScreen or ToolMenu not available. Aborting.");
                 _currentStage = Stage.Complete;
                 return;
             }

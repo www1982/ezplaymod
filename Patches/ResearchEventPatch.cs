@@ -1,6 +1,7 @@
 using HarmonyLib;
 using EZPlay.Core;
 
+using EZPlay.API;
 namespace EZPlay.Patches
 {
     [HarmonyPatch(typeof(Research), "CompleteResearch")]
@@ -8,9 +9,7 @@ namespace EZPlay.Patches
     {
         public static void Postfix(Tech tech)
         {
-            if (ModLoader.EventServer == null) return;
-
-            ModLoader.EventServer.BroadcastEvent("ResearchComplete", new
+            ServiceLocator.Resolve<EventSocketServer>().BroadcastEvent("ResearchComplete", new
             {
                 TechId = tech.Id,
                 TechName = tech.Name

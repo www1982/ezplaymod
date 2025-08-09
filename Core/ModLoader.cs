@@ -9,15 +9,21 @@ namespace EZPlay.Core
 {
     public class ModLoader : UserMod2
     {
-        public static EventSocketServer EventServer { get; private set; }
+        public const string ApiVersion = "1.1.0";
 
         public override void OnLoad(Harmony harmony)
         {
             base.OnLoad(harmony);
+
+            var logger = new EZPlay.Core.Logger("ModLoader");
+            EZPlay.Core.Logger.CurrentLogLevel = LogLevel.DEBUG;
+            logger.Info("ModLoader loaded.");
+
             ApiServer.Start();
 
-            EventServer = new EventSocketServer("ws://0.0.0.0:8081");
-            EventServer.Start();
+            var eventServer = new EventSocketServer("ws://0.0.0.0:8081");
+            ServiceLocator.Register(eventServer);
+            eventServer.Start();
 
             MainThreadDispatcher.OnUpdate += () => LogisticsManager.Tick(Time.deltaTime);
         }

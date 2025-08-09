@@ -1,4 +1,6 @@
 using System;
+using EZPlay.API.Models;
+using EZPlay.API.Exceptions;
 using Newtonsoft.Json;
 using System.IO;
 using UnityEngine;
@@ -7,47 +9,64 @@ namespace EZPlay.API.Executors
 {
     public static class GlobalActionExecutor
     {
+        private static readonly EZPlay.Core.Logger logger = new EZPlay.Core.Logger("GlobalActionExecutor");
         private class GlobalActionRequest
         {
             public string ActionName { get; set; }
         }
 
-        public static object Execute(string jsonPayload)
+        public static ExecutionResult Execute(string jsonPayload)
         {
-            var request = JsonConvert.DeserializeObject<GlobalActionRequest>(jsonPayload);
+            if (string.IsNullOrEmpty(jsonPayload))
+            {
+                throw new ApiException(400, "Payload cannot be null or empty.");
+            }
+
+            GlobalActionRequest request;
+            try
+            {
+                request = JsonConvert.DeserializeObject<GlobalActionRequest>(jsonPayload);
+            }
+            catch (JsonException ex)
+            {
+                throw new ApiException(400, $"Invalid JSON format: {ex.Message}");
+            }
+
             if (request == null || string.IsNullOrEmpty(request.ActionName))
             {
-                throw new ArgumentException("Invalid payload for global action.");
+                throw new ApiException(400, "Invalid payload. It must contain an 'ActionName' field.");
             }
 
             switch (request.ActionName.ToLower())
             {
                 case "take_screenshot":
-                    // Correct way to take a screenshot via the pause screen
                     string activeSaveFilePath = SaveLoader.GetActiveSaveFilePath();
-                    string text = Path.Combine(Path.GetDirectoryName(activeSaveFilePath), "screenshot");
-                    string fileName = Path.GetFileName(activeSaveFilePath);
-                    Directory.CreateDirectory(text);
-                    string text2 = string.Concat(new string[]
+                    if (string.IsNullOrEmpty(activeSaveFilePath))
                     {
-                        Path.GetFileNameWithoutExtension(fileName),
-                        "_",
-                        GameClock.Instance.GetCycle().ToString(),
-                        "_",
-                        System.DateTime.Now.ToString("yyyy-MM-dd_HH\\hmm\\mss\\s"),
-                        ".png"
-                    });
-                    string filename = Path.Combine(text, text2);
-                    ScreenCapture.CaptureScreenshot(filename);
-                    return new { success = true, message = "Screenshot taken." };
+                        throw new ApiException(500, "Cannot take screenshot: No active save file path found.");
+                    }
+                    string dir = Path.Combine(Path.GetDirectoryName(activeSaveFilePath), "screenshots");
+                    Directory.CreateDirectory(dir);
+                    string fileName = $"{Path.GetFileNameWithoutExtension(activeSaveFilePath)}_{GameClock.Instance.GetCycle()}_{System.DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png";
+                    string filePath = Path.Combine(dir, fileName);
+                    ScreenCapture.CaptureScreenshot(filePath);
+                    return new ExecutionResult { Success = true, Message = $"Screenshot saved to {filePath}", Data = filePath };
                 case "pause_game":
-                    SpeedControlScreen.Instance.Pause();
-                    return new { success = true, message = "Game paused." };
+                    if (SpeedControlScreen.Instance != null)
+                    {
+                        SpeedControlScreen.Instance.Pause();
+                        return new ExecutionResult { Success = true, Message = "Game paused." };
+                    }
+                    throw new ApiException(500, "SpeedControlScreen instance not found.");
                 case "unpause_game":
-                    SpeedControlScreen.Instance.Unpause();
-                    return new { success = true, message = "Game unpaused." };
+                    if (SpeedControlScreen.Instance != null)
+                    {
+                        SpeedControlScreen.Instance.Unpause();
+                        return new ExecutionResult { Success = true, Message = "Game unpaused." };
+                    }
+                    throw new ApiException(500, "SpeedControlScreen instance not found.");
                 default:
-                    throw new ArgumentException($"Unknown global action: {request.ActionName}");
+                    throw new ApiException(400, $"Unknown global action: {request.ActionName}");
             }
         }
     }

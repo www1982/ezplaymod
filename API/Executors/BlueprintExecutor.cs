@@ -1,5 +1,7 @@
 using System;
 using EZPlay.Blueprints;
+using EZPlay.API.Models;
+using EZPlay.API.Exceptions;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -10,28 +12,54 @@ namespace EZPlay.API.Executors
     /// </summary>
     public static class BlueprintExecutor
     {
+        private static readonly EZPlay.Core.Logger logger = new EZPlay.Core.Logger("BlueprintExecutor");
+
         /// <summary>
         /// Scans a specified area in the game world and creates a blueprint from it.
         /// </summary>
         /// <param name="jsonPayload">A JSON string containing the 'name' for the blueprint and the 'area' to scan.</param>
         /// <returns>An object containing the result of the operation, either the created blueprint or an error message.</returns>
-        public static object CreateFromGame(string jsonPayload)
+        public static ExecutionResult CreateFromGame(string jsonPayload)
         {
+            if (string.IsNullOrEmpty(jsonPayload))
+            {
+                throw new ApiException(400, "Payload cannot be null or empty.");
+            }
+
+            CreateFromGamePayload payload;
             try
             {
-                var payload = JsonConvert.DeserializeObject<CreateFromGamePayload>(jsonPayload);
-                if (payload == null)
-                {
-                    throw new ArgumentException("Invalid payload structure.");
-                }
+                payload = JsonConvert.DeserializeObject<CreateFromGamePayload>(jsonPayload);
+            }
+            catch (JsonException ex)
+            {
+                throw new ApiException(400, $"Invalid JSON format: {ex.Message}");
+            }
 
+            if (payload == null)
+            {
+                throw new ApiException(400, "Invalid payload structure. Could not deserialize.");
+            }
+
+            if (string.IsNullOrEmpty(payload.Name))
+            {
+                throw new ApiException(400, "Payload must contain a 'name' field.");
+            }
+
+            if (payload.Area.width <= 0 || payload.Area.height <= 0)
+            {
+                throw new ApiException(400, "Payload 'area' must have a positive width and height.");
+            }
+
+            try
+            {
                 var scannedBlueprint = BlueprintScanner.ScanAreaToBlueprint(payload.Name, payload.Area);
-
-                return new { success = true, blueprint = scannedBlueprint };
+                return new ExecutionResult { Success = true, Message = "Blueprint created successfully.", Data = scannedBlueprint };
             }
             catch (Exception ex)
             {
-                return new { success = false, error = ex.Message };
+                // Catching potential exceptions from BlueprintScanner for robustness
+                throw new ApiException(500, $"An unexpected error occurred during blueprint scanning: {ex.Message}");
             }
         }
 
