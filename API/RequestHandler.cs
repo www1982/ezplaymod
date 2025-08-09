@@ -41,6 +41,8 @@ namespace EZPlay.API
                         return LogisticsExecutor.SetPolicy(payloadString);
                     case "/api/logistics/remove_policy":
                         return LogisticsExecutor.RemovePolicy(payloadString);
+                    case "/api/blueprints/create_from_game":
+                        return BlueprintExecutor.CreateFromGame(payloadString);
 
                     default:
                         throw new ArgumentException($"Unknown action: {action}");
