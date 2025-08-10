@@ -25,28 +25,6 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(BuildingHP), "OnOverheating")]
-    public static class BuildingOverheatedPatch
-    {
-        private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
-
-        public static void Postfix(BuildingHP __instance)
-        {
-            var building = __instance.gameObject;
-            var temperatureMonitor = __instance.GetComponent<PrimaryElement>();
-            var payload = new
-            {
-                buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
-                buildingName = building.GetProperName(),
-                cell = Grid.PosToCell(building.transform.position),
-                currentTemp = temperatureMonitor?.Temperature,
-                overheatTemp = __instance.GetComponent<Building>().Def.OverheatTemperature
-            };
-
-            _eventBroadcaster?.BroadcastEvent("Alert.Building.Overheated", payload);
-        }
-    }
-
     [HarmonyPatch(typeof(Deconstructable), "OnDeconstructComplete")]
     public static class BuildingDeconstructedPatch
     {
