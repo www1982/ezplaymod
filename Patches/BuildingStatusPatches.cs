@@ -6,22 +6,25 @@ using System.Linq;
 
 namespace EZPlay.Patches
 {
-    [HarmonyPatch(typeof(Repairable), "TriggerMarkForRepair")]
+    [HarmonyPatch(typeof(Repairable.States), "InitializeStates")]
     public static class BuildingBrokenPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
-        public static void Postfix(Repairable __instance)
+        public static void Postfix(Repairable.States __instance)
         {
-            var building = __instance.gameObject;
-            var payload = new
+            __instance.repaired.EventTransition(GameHashes.BuildingReceivedDamage, __instance.allowed, smi =>
             {
-                buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
-                buildingName = building.GetProperName(),
-                cell = Grid.PosToCell(building.transform.position)
-            };
-
-            _eventBroadcaster?.BroadcastEvent("Alert.Building.Broken", payload);
+                var building = smi.master.gameObject;
+                var payload = new
+                {
+                    buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
+                    buildingName = building.GetProperName(),
+                    cell = Grid.PosToCell(building.transform.position)
+                };
+                _eventBroadcaster?.BroadcastEvent("Alert.Building.Broken", payload);
+                return smi.NeedsRepairs();
+            });
         }
     }
 
