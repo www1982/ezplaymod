@@ -23,10 +23,14 @@ namespace EZPlay.Core
 
             logger.Info("ModLoader loaded.");
 
-            // 2. Start the API server (if it's static and doesn't need registration)
+            // 2. Instantiate and register SecurityWhitelist
+            var whitelist = new SecurityWhitelist(logger, "Mods/EZPlay/whitelist.json");
+            ServiceContainer.Register<ISecurityWhitelist>(whitelist);
+
+            // 3. Start the API server
             ApiServer.Start();
 
-            // 3. Instantiate and register EventSocketServer
+            // 4. Instantiate and register EventSocketServer
             var eventServer = new EventSocketServer("ws://0.0.0.0:8081");
             ServiceContainer.Register<IEventBroadcaster>(eventServer);
             eventServer.Start();

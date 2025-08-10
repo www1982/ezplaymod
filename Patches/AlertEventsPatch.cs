@@ -7,7 +7,7 @@ namespace EZPlay.Patches
 {
     // 捕获复制人死亡事件
     [HarmonyPatch(typeof(DeathMonitor.Instance), "Kill")]
-    public class DuplicantDeathPatch
+    public class DuplicantDeathAlertPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 

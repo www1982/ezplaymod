@@ -53,3 +53,34 @@
 - **高可测试性**: 在单元测试中，可以轻松地用“模拟 (Mock)”实现来替换真实的服务，从而实现对业务逻辑的隔离测试。
 - **清晰的依赖关系**: 模块所需的服务在其代码中被明确请求，使得代码结构更清晰。
 - **灵活的实现替换**: 未来可以方便地替换或装饰任何核心服务的具体实现，而无需修改依赖它的代码。
+
+## AI 事件感知系统
+
+本 Mod 实现了一个全面的事件系统，能够感知游戏中的各种关键变化，并将它们作为结构化的 JSON 数据通过 WebSocket 实时广播。这为外部 AI 或自动化工具提供了决策所需的核心数据。
+
+### I. 小人生命周期与状态事件 (Duplicant Lifecycle & Status)
+
+- **`Lifecycle.Duplicant.Printed`**: 当一个新的复制人被打印（选择）时触发。
+- **`Lifecycle.Duplicant.Death`**: 当一个复制人死亡时触发。
+- **`Lifecycle.Duplicant.GainedSkill`**: 当一个复制人掌握一项新技能时触发。
+- **`Alert.Duplicant.StressBreak`**: 当一个复制人压力过大并崩溃时触发。
+- **`Alert.Dulicant.DiseaseGained`**: 当一个复制人感染疾病时触发。
+
+### II. 建筑与设施状态事件 (Building & Facility Status)
+
+- **`Alert.Building.Broken`**: 当一个建筑损坏时触发。
+- **`Alert.Building.Overheated`**: 当一个建筑过热时触发。
+- **`Milestone.Building.Deconstructed`**: 当一个建筑被完全拆除时触发。
+- **`StateChange.Storage.ContentChanged`**: 当一个存储容器的内容发生变化时触发。
+
+### III. 资源与环境突变事件 (Resource & Environment)
+
+- **`StateChange.Geyser.EruptionStateChanged`**: 当一个间歇泉开始或停止喷发时触发。
+- **`Milestone.World.NewElementDiscovered`**: 当一种新的元素被发现时触发。
+- **`Alert.World.MeteorShower`**: 当一场流星雨开始时触发。
+
+### IV. 里程碑与全局状态事件 (Milestone & Global State)
+
+- **`Milestone.PrintingPod.NewPrintablesAvailable`**: 当打印舱提供新的可打印选项时触发。
+- **`Milestone.Artifact.Analyzed`**: 当一个神器被成功分析时触发。
+- **`StateChange.Schedule.Changed`**: 当一个日程表被修改时触发。

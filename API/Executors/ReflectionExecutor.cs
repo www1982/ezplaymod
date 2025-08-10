@@ -4,6 +4,7 @@ using System.Reflection;
 using EZPlay.API.Models;
 using EZPlay.API.Exceptions;
 using EZPlay.Core;
+using EZPlay.Core.Interfaces;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -12,6 +13,8 @@ namespace EZPlay.API.Executors
     public static class ReflectionExecutor
     {
         private static readonly EZPlay.Core.Logger logger = new EZPlay.Core.Logger("ReflectionExecutor");
+        private static ISecurityWhitelist _whitelist;
+
         private class ReflectionRequest
         {
             public int GameObjectId { get; set; }
@@ -23,6 +26,8 @@ namespace EZPlay.API.Executors
 
         public static ExecutionResult Execute(string jsonPayload)
         {
+            _whitelist = ServiceContainer.Resolve<ISecurityWhitelist>();
+
             if (string.IsNullOrEmpty(jsonPayload))
             {
                 throw new ApiException(400, "Payload cannot be null or empty.");
@@ -48,9 +53,9 @@ namespace EZPlay.API.Executors
                 throw new ApiException(400, "'ComponentName' and 'MemberName' are required.");
             }
 
-            if (!SecurityWhitelist.AllowedComponents.Contains(request.ComponentName))
+            if (!_whitelist.IsAllowed(request.ComponentName, request.MemberName))
             {
-                throw new ApiException(403, $"Access to component '{request.ComponentName}' is not allowed.");
+                throw new ApiException(403, $"Access to member '{request.MemberName}' on component '{request.ComponentName}' is not allowed.");
             }
 
             var go = GetGameObjectById(request.GameObjectId);
@@ -69,11 +74,6 @@ namespace EZPlay.API.Executors
             {
                 if (request.IsProperty)
                 {
-                    if (!SecurityWhitelist.AllowedProperties.Contains($"{request.ComponentName}.{request.MemberName}"))
-                    {
-                        throw new ApiException(403, $"Access to property '{request.MemberName}' on component '{request.ComponentName}' is not allowed.");
-                    }
-
                     var prop = component.GetType().GetProperty(request.MemberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
                     if (prop == null)
                     {
@@ -84,11 +84,6 @@ namespace EZPlay.API.Executors
                 }
                 else
                 {
-                    if (!SecurityWhitelist.AllowedMethods.Contains($"{request.ComponentName}.{request.MemberName}"))
-                    {
-                        throw new ApiException(403, $"Access to method '{request.MemberName}' on component '{request.ComponentName}' is not allowed.");
-                    }
-
                     var method = component.GetType().GetMethod(request.MemberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
                     if (method == null)
                     {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using EZPlay.Core;
+using EZPlay.Core.Interfaces;
 using EZPlay.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -14,11 +15,13 @@ namespace EZPlay.Blueprints
     public static class BlueprintManager
     {
         private static readonly string BlueprintsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Blueprints");
+        private static readonly ISecurityWhitelist _whitelist;
 
         static BlueprintManager()
         {
             // Ensure the blueprints directory exists
             Directory.CreateDirectory(BlueprintsFolderPath);
+            _whitelist = ServiceContainer.Resolve<ISecurityWhitelist>();
         }
 
         public static Blueprint CreateBlueprint(string name, List<string> objectIds, string anchorObjectId)
@@ -89,21 +92,23 @@ namespace EZPlay.Blueprints
         private static Dictionary<string, JToken> ExtractSettings(GameObject go)
         {
             var settings = new Dictionary<string, JToken>();
-            foreach (var componentName in SecurityWhitelist.AllowedComponents)
+            if (_whitelist == null) return settings;
+
+            foreach (var component in go.GetComponents<Component>())
             {
-                var component = go.GetComponent(componentName);
                 if (component == null) continue;
 
+                var componentName = component.GetType().FullName;
                 var properties = component.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
                 foreach (var propInfo in properties)
                 {
-                    string fullPropName = $"{componentName}.{propInfo.Name}";
-                    if (SecurityWhitelist.AllowedProperties.Contains(fullPropName))
+                    if (_whitelist.IsAllowed(componentName, propInfo.Name))
                     {
                         try
                         {
                             object value = propInfo.GetValue(component, null);
-                            settings[fullPropName] = JToken.FromObject(value);
+                            settings[$"{componentName}.{propInfo.Name}"] = JToken.FromObject(value);
                         }
                         catch { }
                     }

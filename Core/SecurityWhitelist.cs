@@ -1,42 +1,52 @@
+using EZPlay.Core.Interfaces;
+using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.IO;
 
 namespace EZPlay.Core
 {
-    /// <summary>
-    /// 安全白名单，定义了AI可以通过反射API访问的组件和方法。
-    /// 这是保障游戏稳定的最重要防线。
-    /// </summary>
-    public static class SecurityWhitelist
+    public class SecurityWhitelist : ISecurityWhitelist
     {
-        public static readonly HashSet<string> AllowedComponents = new HashSet<string>
-        {
-            "Storage", "PrimaryElement", "Prioritizable", "BuildingComplete", "TreeFilterable"
-        };
+        private readonly Dictionary<string, HashSet<string>> _allowedMembers = new Dictionary<string, HashSet<string>>();
+        private readonly ILogger _logger;
 
-        public static readonly HashSet<string> AllowedMethods = new HashSet<string>
+        public SecurityWhitelist(ILogger logger, string configPath)
         {
-            // Prioritizable
-            "Prioritizable.SetMasterPriority",
-            // Storage
-            "Storage.SetOnlyFetchMarkedItems",
-            "Storage.allowItemRemoval",
-            // TreeFilterable
-            "TreeFilterable.AddTagToFilter",
-            "TreeFilterable.RemoveTagFromFilter",
-            "TreeFilterable.UpdateFilters"
-        };
+            _logger = logger;
+            LoadWhitelist(configPath);
+        }
 
-        public static readonly HashSet<string> AllowedProperties = new HashSet<string>
+        private void LoadWhitelist(string configPath)
         {
-            // PrimaryElement
-            "PrimaryElement.Temperature",
-            "PrimaryElement.Mass",
-            "PrimaryElement.ElementID",
-            // Storage
-            "Storage.capacity",
-            "Storage.MassStored",
-            // Prioritizable
-            "Prioritizable.masterPriority"
-        };
+            if (!File.Exists(configPath))
+            {
+                _logger.Warning($"Whitelist file not found at: {configPath}. Reflection API will be restricted.");
+                return;
+            }
+
+            var json = File.ReadAllText(configPath);
+            var rules = JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(json);
+
+            foreach (var rule in rules)
+            {
+                _allowedMembers[rule.Key] = new HashSet<string>(rule.Value);
+            }
+            _logger.Info($"Whitelist loaded successfully from: {configPath}");
+        }
+
+        public bool IsAllowed(string typeName, string memberName)
+        {
+            if (_allowedMembers.TryGetValue("*", out var globalRules))
+            {
+                if (globalRules.Contains("*")) return true;
+            }
+
+            if (_allowedMembers.TryGetValue(typeName, out var memberRules))
+            {
+                return memberRules.Contains(memberName) || memberRules.Contains("*");
+            }
+
+            return false;
+        }
     }
 }
