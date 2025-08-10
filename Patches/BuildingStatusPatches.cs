@@ -7,25 +7,34 @@ using UnityEngine;
 
 namespace EZPlay.Patches
 {
-    [HarmonyPatch(typeof(Repairable.States), "InitializeStates")]
+    [HarmonyPatch(typeof(Repairable), "OnSpawn")]
     public static class BuildingBrokenPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
-        public static void Postfix(Repairable.States __instance)
+        public static void Postfix(Repairable __instance)
         {
-            __instance.repaired.EventTransition(GameHashes.BuildingReceivedDamage, __instance.allowed, smi =>
+            var controller = __instance.GetComponent<StateMachineController>();
+            if (controller != null)
             {
-                var building = smi.master.gameObject;
-                var payload = new
+                var smi = controller.GetSMI<Repairable.SMInstance>();
+                if (smi != null)
                 {
-                    buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
-                    buildingName = building.GetProperName(),
-                    cell = Grid.PosToCell(building.transform.position)
-                };
-                _eventBroadcaster?.BroadcastEvent("Alert.Building.Broken", payload);
-                return smi.NeedsRepairs();
-            });
+                    var sm = smi.sm;
+                    sm.repaired.EventTransition(GameHashes.BuildingReceivedDamage, sm.allowed, event_smi =>
+                    {
+                        var building = event_smi.master.gameObject;
+                        var payload = new
+                        {
+                            buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
+                            buildingName = building.GetProperName(),
+                            cell = Grid.PosToCell(building.transform.position)
+                        };
+                        _eventBroadcaster?.BroadcastEvent("Alert.Building.Broken", payload);
+                        return event_smi.NeedsRepairs();
+                    });
+                }
+            }
         }
     }
 
