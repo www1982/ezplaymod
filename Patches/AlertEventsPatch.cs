@@ -36,21 +36,4 @@ namespace EZPlay.Patches
         }
     }
 
-    // 捕获建筑过热事件
-    [HarmonyPatch(typeof(BuildingHP), "OnOverheating")]
-    public class BuildingOverheatingPatch
-    {
-        private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
-
-        public static void Postfix(BuildingHP __instance)
-        {
-            var building = __instance.gameObject;
-            var position = building.transform.position;
-            _eventBroadcaster?.BroadcastEvent("Alert.BuildingOverheating", new
-            {
-                BuildingName = building.GetProperName(),
-                Position = new { X = position.x, Y = position.y }
-            });
-        }
-    }
 }

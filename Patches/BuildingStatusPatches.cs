@@ -73,4 +73,33 @@ namespace EZPlay.Patches
             _eventBroadcaster?.BroadcastEvent("StateChange.Storage.ContentChanged", payload);
         }
     }
+
+    [HarmonyPatch(typeof(Overheatable.States), nameof(Overheatable.States.overheated), MethodType.Getter)]
+    public static class BuildingOverheatingPatch
+    {
+        private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
+
+        public static void Postfix(StateMachine.BaseState __result)
+        {
+            __result.enterActions.Add(new StateMachine.Action("BroadcastOverheatEvent", (System.Action<StateMachine.Instance>)(smi =>
+            {
+                var overheatable = smi.GetComponent<Overheatable>();
+                if (overheatable == null) return;
+
+                var building = overheatable.gameObject;
+                var temperatureMonitor = building.GetComponent<PrimaryElement>();
+
+                var payload = new
+                {
+                    buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
+                    buildingName = building.GetProperName(),
+                    cell = Grid.PosToCell(building.transform.position),
+                    currentTemp = temperatureMonitor?.Temperature,
+                    overheatTemp = overheatable.OverheatTemperature
+                };
+
+                _eventBroadcaster?.BroadcastEvent("Alert.Building.Overheated", payload);
+            })));
+        }
+    }
 }
