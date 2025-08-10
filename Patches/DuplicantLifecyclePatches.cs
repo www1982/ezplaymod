@@ -127,4 +127,26 @@ namespace EZPlay.Patches
             _eventBroadcaster?.BroadcastEvent("Alert.Dulicant.DiseaseGained", payload);
         }
     }
+    [HarmonyPatch(typeof(Klei.AI.AttributeInstance), "SetValue")]
+    public static class DuplicantAttributeChangedPatch
+    {
+        private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
+
+        public static void Postfix(Klei.AI.AttributeInstance __instance, float value)
+        {
+            var minionIdentity = __instance.gameObject.GetComponent<MinionIdentity>();
+            if (minionIdentity == null) return;
+
+            var payload = new
+            {
+                duplicantId = minionIdentity.GetComponent<KPrefabID>().InstanceID.ToString(),
+                duplicantName = minionIdentity.GetProperName(),
+                attributeId = __instance.Attribute.Id,
+                attributeName = __instance.Attribute.Name,
+                newValue = value
+            };
+
+            _eventBroadcaster?.BroadcastEvent("Lifecycle.Duplicant.AttributeChanged", payload);
+        }
+    }
 }
