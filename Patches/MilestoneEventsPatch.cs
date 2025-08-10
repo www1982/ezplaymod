@@ -26,7 +26,7 @@ namespace EZPlay.Patches
     }
 
     // 捕获新复制人打印事件
-    [HarmonyPatch(typeof(Immigration), "ApplyDefaultPersonalPriorities")]
+    //[HarmonyPatch(typeof(Immigration), "ApplyDefaultPersonalPriorities")]
     public class NewDuplicantPatch
     {
         public static void Postfix(Immigration __instance, GameObject minion)
