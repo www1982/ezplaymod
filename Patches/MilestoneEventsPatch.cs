@@ -42,4 +42,14 @@ namespace EZPlay.Patches
             });
         }
     }
+
+    // 当有新的可打印项目时触发
+    [HarmonyPatch(typeof(Immigration), "OnNewImmigrantsAvailable")]
+    public static class NewPrintablesAvailablePatch
+    {
+        public static void Postfix()
+        {
+            EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("Milestone.NewPrintablesAvailable", null);
+        }
+    }
 }
