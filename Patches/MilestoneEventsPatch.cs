@@ -10,11 +10,13 @@ using Klei.AI;
 namespace EZPlay.Patches
 {
     // 捕获研究完成事件
-    [HarmonyPatch(typeof(Research), "CompleteResearch")]
+    [HarmonyPatch(typeof(Research), "CheckBuyResearch")]
     public class ResearchCompletePatch
     {
-        public static void Postfix(Research __instance, Tech tech)
+        public static void Postfix(Research __instance)
         {
+            if (__instance.GetActiveResearch() == null) return;
+            Tech tech = __instance.GetActiveResearch().tech;
             EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("Milestone.ResearchComplete", new
             {
                 TechId = tech.Id,
