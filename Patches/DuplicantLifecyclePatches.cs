@@ -40,19 +40,22 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(MinionIdentity), "OnDeath")]
+    [HarmonyPatch(typeof(DeathMonitor.Instance), "Kill")]
     public static class DuplicantDeathPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
-        public static void Postfix(MinionIdentity __instance, GameHashes cause)
+        public static void Postfix(DeathMonitor.Instance __instance, Death cause)
         {
+            var minionIdentity = __instance.GetComponent<MinionIdentity>();
+            if (minionIdentity == null) return;
+
             var payload = new
             {
-                duplicantId = __instance.GetComponent<KPrefabID>().InstanceID.ToString(),
-                duplicantName = __instance.GetProperName(),
-                causeOfDeath = cause.ToString(),
-                cell = Grid.PosToCell(__instance.transform.position)
+                duplicantId = minionIdentity.GetComponent<KPrefabID>().InstanceID.ToString(),
+                duplicantName = minionIdentity.GetProperName(),
+                causeOfDeath = cause.Id,
+                cell = Grid.PosToCell(minionIdentity.transform.position)
             };
 
             _eventBroadcaster?.BroadcastEvent("Lifecycle.Duplicant.Death", payload);
