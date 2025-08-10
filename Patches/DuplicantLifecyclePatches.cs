@@ -107,12 +107,12 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Sicknesses), "Add")]
+    [HarmonyPatch(typeof(Sicknesses), "CreateInstance")]
     public static class DuplicantDiseaseGainedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
-        public static void Postfix(Sicknesses __instance, SicknessInstance sicknessInstance)
+        public static void Postfix(Sicknesses __instance, ref SicknessInstance __result)
         {
             var minionIdentity = __instance.GetComponent<MinionIdentity>();
             if (minionIdentity == null) return;
@@ -121,7 +121,7 @@ namespace EZPlay.Patches
             {
                 duplicantId = minionIdentity.GetComponent<KPrefabID>().InstanceID.ToString(),
                 duplicantName = minionIdentity.GetProperName(),
-                diseaseId = sicknessInstance.Sickness.Id
+                diseaseId = __result.Sickness.Id
             };
 
             _eventBroadcaster?.BroadcastEvent("Alert.Dulicant.DiseaseGained", payload);
