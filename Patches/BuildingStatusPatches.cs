@@ -28,7 +28,7 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Deconstructable), "OnDeconstructComplete")]
+    [HarmonyPatch(typeof(Deconstructable), "OnCompleteWork")]
     public static class BuildingDeconstructedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -38,9 +38,8 @@ namespace EZPlay.Patches
             var building = __instance.gameObject;
             var salvaged = new Dictionary<string, float>();
 
-            // This part is a bit tricky as the original materials are gone.
-            // A more robust solution might need to patch another method to get materials before deconstruction.
-            // For now, we send an empty object.
+            // Note: A more robust solution might need to patch another method 
+            // to get materials before deconstruction. For now, we send an empty object.
 
             var payload = new
             {
