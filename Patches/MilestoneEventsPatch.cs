@@ -26,12 +26,12 @@ namespace EZPlay.Patches
     }
 
     // 捕获新复制人打印事件
-    [HarmonyPatch(typeof(Immigration), "OnSpawn")]
+    [HarmonyPatch(typeof(Immigration), "ApplyDefaultPersonalPriorities")]
     public class NewDuplicantPatch
     {
-        public static void Postfix(Immigration __instance, GameObject duplicant)
+        public static void Postfix(Immigration __instance, GameObject minion)
         {
-            var identity = duplicant.GetComponent<MinionIdentity>();
+            var identity = minion.GetComponent<MinionIdentity>();
             var traitsComponent = identity.GetComponent<Traits>();
             var traits = traitsComponent.GetTraitIds();
 
