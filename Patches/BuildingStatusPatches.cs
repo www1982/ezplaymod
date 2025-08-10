@@ -7,14 +7,14 @@ using UnityEngine;
 
 namespace EZPlay.Patches
 {
-    [HarmonyPatch("Repairable+States", "InitializeStates")]
+    [HarmonyPatch(typeof(Repairable.States), "InitializeStates")]
     public static class BuildingBrokenPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
-        public static void Postfix(GameStateMachine<Repairable.States, Repairable.SMInstance, Repairable, object>.State repaired, GameStateMachine<Repairable.States, Repairable.SMInstance, Repairable, object>.State allowed)
+        public static void Postfix(Repairable.States __instance)
         {
-            repaired.EventTransition(GameHashes.BuildingReceivedDamage, allowed, smi =>
+            __instance.repaired.EventTransition(GameHashes.BuildingReceivedDamage, __instance.allowed, smi =>
             {
                 var building = smi.master.gameObject;
                 var payload = new
