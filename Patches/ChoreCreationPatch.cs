@@ -13,12 +13,12 @@ namespace EZPlay.Patches
         /// <summary>
         /// Postfix 补丁，在 AddChore 方法执行后运行。
         /// </summary>
-        public static void Postfix(Chore __result)
+        public static void Postfix(Chore chore)
         {
-            if (__result == null) return;
+            if (chore == null) return;
 
             // 尝试获取 Chore 的目标 GameObject
-            GameObject targetObject = __result.target?.gameObject;
+            GameObject targetObject = chore.target?.gameObject;
             if (targetObject == null) return;
 
             // 获取目标单元格
@@ -26,7 +26,7 @@ namespace EZPlay.Patches
             if (cell == Grid.InvalidCell) return;
 
             // 通知 BlueprintPlacer 有新的 Chore 被创建
-            BlueprintPlacer.NotifyChoreCreated(__result, cell);
+            BlueprintPlacer.NotifyChoreCreated(chore, cell);
         }
     }
 }
