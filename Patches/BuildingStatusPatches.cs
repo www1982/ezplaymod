@@ -3,6 +3,7 @@ using EZPlay.Core;
 using EZPlay.Core.Interfaces;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace EZPlay.Patches
 {
@@ -53,25 +54,40 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Storage), "OnStorageChanged")]
-    public static class StorageContentChangedPatch
+    [HarmonyPatch(typeof(Storage), "Store")]
+    public static class StorageStorePatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
-        public static void Postfix(Storage __instance, object data)
+        public static void Postfix(Storage __instance, GameObject go)
         {
-            var changedItems = __instance.GetItems().Select(item => new
-            {
-                tag = item.tag.ToString(),
-                amount = item.GetComponent<PrimaryElement>().Mass
-            }).ToList();
-
             var payload = new
             {
                 storageId = __instance.GetComponent<KPrefabID>().InstanceID.ToString(),
-                changedItems = changedItems
+                changedItems = new[] { new {
+                    tag = go.PrefabID().ToString(),
+                    amount = go.GetComponent<PrimaryElement>().Mass
+                }}
             };
+            _eventBroadcaster?.BroadcastEvent("StateChange.Storage.ContentChanged", payload);
+        }
+    }
 
+    [HarmonyPatch(typeof(Storage), "Remove")]
+    public static class StorageRemovePatch
+    {
+        private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
+
+        public static void Postfix(Storage __instance, GameObject go)
+        {
+            var payload = new
+            {
+                storageId = __instance.GetComponent<KPrefabID>().InstanceID.ToString(),
+                changedItems = new[] { new {
+                    tag = go.PrefabID().ToString(),
+                    amount = -go.GetComponent<PrimaryElement>().Mass // Negative amount for removal
+                }}
+            };
             _eventBroadcaster?.BroadcastEvent("StateChange.Storage.ContentChanged", payload);
         }
     }
