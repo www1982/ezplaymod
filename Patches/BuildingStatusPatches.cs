@@ -101,14 +101,14 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Overheatable.States), nameof(Overheatable.States.overheated), MethodType.Getter)]
+    [HarmonyPatch("Overheatable+States", "overheated", MethodType.Getter)]
     public static class BuildingOverheatingPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
         public static void Postfix(StateMachine.BaseState __result)
         {
-            __result.enterActions.Add(new StateMachine.Action("BroadcastOverheatEvent", (System.Action<StateMachine.Instance>)(smi =>
+            __result.enterActions.Add(new StateMachine.Action("BroadcastOverheatEvent", (Overheatable.StatesInstance smi) =>
             {
                 var overheatable = smi.GetComponent<Overheatable>();
                 if (overheatable == null) return;
@@ -126,7 +126,7 @@ namespace EZPlay.Patches
                 };
 
                 _eventBroadcaster?.BroadcastEvent("Alert.Building.Overheated", payload);
-            })));
+            }));
         }
     }
 }
