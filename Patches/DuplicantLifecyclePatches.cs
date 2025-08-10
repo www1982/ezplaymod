@@ -45,7 +45,7 @@ namespace EZPlay.Patches
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
-        public static void Postfix(DeathMonitor.Instance __instance, Death cause)
+        public static void Postfix(DeathMonitor.Instance __instance, Death death)
         {
             var minionIdentity = __instance.GetComponent<MinionIdentity>();
             if (minionIdentity == null) return;
@@ -54,7 +54,7 @@ namespace EZPlay.Patches
             {
                 duplicantId = minionIdentity.GetComponent<KPrefabID>().InstanceID.ToString(),
                 duplicantName = minionIdentity.GetProperName(),
-                causeOfDeath = cause.Id,
+                causeOfDeath = death.Id,
                 cell = Grid.PosToCell(minionIdentity.transform.position)
             };
 
