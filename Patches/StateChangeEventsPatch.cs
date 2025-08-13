@@ -6,7 +6,7 @@ using UnityEngine;
 namespace EZPlay.Patches
 {
     // 捕获间歇泉状态变更事件
-    [HarmonyPatch(typeof(Geyser), "OnStateChanged")]
+    //[HarmonyPatch(typeof(Geyser), "OnStateChanged")]
     public class GeyserStateChangePatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();

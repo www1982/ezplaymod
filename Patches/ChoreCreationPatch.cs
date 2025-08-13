@@ -7,7 +7,7 @@ namespace EZPlay.Patches
     /// <summary>
     /// 对 GlobalChoreProvider.AddChore 应用补丁，以捕获所有新创建的 Chore。
     /// </summary>
-    [HarmonyPatch(typeof(GlobalChoreProvider), "AddChore")]
+    //[HarmonyPatch(typeof(GlobalChoreProvider), "AddChore")]
     public static class ChoreCreation_Patch
     {
         /// <summary>

@@ -9,27 +9,11 @@ using Klei.AI;
 
 namespace EZPlay.Patches
 {
-    // 捕获研究完成事件
-    [HarmonyPatch(typeof(Research), "CheckBuyResearch")]
-    public class ResearchCompletePatch
-    {
-        public static void Postfix(Research __instance)
-        {
-            if (__instance.GetActiveResearch() == null) return;
-            Tech tech = __instance.GetActiveResearch().tech;
-            EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("Milestone.ResearchComplete", new
-            {
-                TechId = tech.Id,
-                TechName = tech.Name
-            });
-        }
-    }
-
     // 捕获新复制人打印事件
     //[HarmonyPatch(typeof(Immigration), "ApplyDefaultPersonalPriorities")]
     public class NewDuplicantPatch
     {
-        public static void Postfix(Immigration __instance, GameObject minion)
+        public static void Postfix(GameObject minion)
         {
             var identity = minion.GetComponent<MinionIdentity>();
             var traitsComponent = identity.GetComponent<Traits>();
@@ -44,12 +28,37 @@ namespace EZPlay.Patches
     }
 
     // 当有新的可打印项目时触发
-    [HarmonyPatch(typeof(Immigration), "OnNewImmigrantsAvailable")]
+    //[HarmonyPatch(typeof(Immigration), "Sim200ms")]
     public static class NewPrintablesAvailablePatch
     {
-        public static void Postfix()
+        public static void Prefix(Immigration __instance, out bool __state)
         {
-            EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("Milestone.NewPrintablesAvailable", null);
+            __state = __instance.ImmigrantsAvailable;
+        }
+
+
+
+        public static void Postfix(Immigration __instance, bool __state)
+        {
+            if (!__state && __instance.ImmigrantsAvailable)
+            {
+                EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("Milestone.NewPrintablesAvailable", new { });
+            }
+        }
+    }
+
+    //[HarmonyPatch(typeof(Research), "CheckBuyResearch")]
+    public class Research_CheckBuyResearch_Patch
+    {
+        public static void Postfix(Tech tech)
+        {
+            if (tech == null) return;
+
+            EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("ResearchComplete", new
+            {
+                TechId = tech.Id,
+                TechName = tech.Name
+            });
         }
     }
 }

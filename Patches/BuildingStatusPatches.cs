@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace EZPlay.Patches
 {
-    [HarmonyPatch(typeof(Repairable), "OnSpawn")]
+    //[HarmonyPatch(typeof(Repairable), "OnSpawn")]
     public static class BuildingBrokenPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -38,7 +38,7 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Deconstructable), "OnCompleteWork")]
+    //[HarmonyPatch(typeof(Deconstructable), "OnCompleteWork")]
     public static class BuildingDeconstructedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -63,7 +63,7 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Storage), "Store")]
+    //[HarmonyPatch(typeof(Storage), "Store")]
     public static class StorageStorePatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -82,7 +82,7 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Storage), "Remove")]
+    //[HarmonyPatch(typeof(Storage), "Remove")]
     public static class StorageRemovePatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -101,7 +101,7 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch("Overheatable+States", "InitializeStates")]
+    //[HarmonyPatch(typeof(Overheatable.States), "InitializeStates")]
     public static class BuildingOverheatingPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();

@@ -6,7 +6,7 @@ using Klei.AI;
 
 namespace EZPlay.Patches
 {
-    [HarmonyPatch(typeof(CharacterSelectionController), "OnProceed")]
+    ////[HarmonyPatch(typeof(CharacterSelectionController), "OnProceed")]
     public static class DuplicantPrintedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -40,29 +40,51 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(DeathMonitor.Instance), "Kill")]
+    //[HarmonyPatch(typeof(DeathMonitor.Instance), "Kill")]
     public static class DuplicantDeathPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
         public static void Postfix(DeathMonitor.Instance __instance, Death death)
         {
+            // 确保是复制人死亡
+            if (!__instance.IsDuplicant) return;
+
             var minionIdentity = __instance.GetComponent<MinionIdentity>();
             if (minionIdentity == null) return;
 
-            var payload = new
+            var victimName = __instance.gameObject.GetProperName();
+            var deathReason = death.Id;
+
+            // 广播通用的死亡事件
+            var deathPayload = new
             {
                 duplicantId = minionIdentity.GetComponent<KPrefabID>().InstanceID.ToString(),
-                duplicantName = minionIdentity.GetProperName(),
-                causeOfDeath = death.Id,
+                duplicantName = victimName,
+                causeOfDeath = deathReason,
                 cell = Grid.PosToCell(minionIdentity.transform.position)
             };
+            _eventBroadcaster?.BroadcastEvent("Lifecycle.Duplicant.Death", deathPayload);
 
-            _eventBroadcaster?.BroadcastEvent("Lifecycle.Duplicant.Death", payload);
+            // 广播特定的警报事件
+            string alertEventType = null;
+            if (deathReason == "Suffocation")
+            {
+                alertEventType = "Alert.DuplicantSuffocating";
+            }
+            else if (deathReason == "Starvation")
+            {
+                alertEventType = "Alert.DuplicantStarving";
+            }
+
+            if (alertEventType != null)
+            {
+                _eventBroadcaster?.BroadcastEvent(alertEventType, new { DuplicantName = victimName });
+            }
         }
     }
 
-    [HarmonyPatch(typeof(MinionResume), "MasterSkill")]
+    //[HarmonyPatch(typeof(MinionResume), "MasterSkill")]
     public static class DuplicantGainedSkillPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -83,7 +105,7 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(StressMonitor.Instance), "HasHadEnough")]
+    //[HarmonyPatch(typeof(StressMonitor.Instance), "HasHadEnough")]
     public static class DuplicantStressBreakPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -107,7 +129,7 @@ namespace EZPlay.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Sicknesses), "CreateInstance")]
+    //[HarmonyPatch(typeof(Sicknesses), "CreateInstance")]
     public static class DuplicantDiseaseGainedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -127,7 +149,7 @@ namespace EZPlay.Patches
             _eventBroadcaster?.BroadcastEvent("Alert.Dulicant.DiseaseGained", payload);
         }
     }
-    [HarmonyPatch(typeof(Klei.AI.AttributeInstance), "SetValue")]
+    ////[HarmonyPatch(typeof(Klei.AI.AttributeInstance), "SetValue")]
     public static class DuplicantAttributeChangedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
