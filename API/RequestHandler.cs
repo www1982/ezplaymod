@@ -65,7 +65,7 @@ namespace EZPlay.API
                 }
                 else if (action.StartsWith("PrintingPod."))
                 {
-                    result = PersonnelExecutor.HandlePrintingPodAction(action, jObjectPayload);
+                    result = PrintingPodExecutor.HandlePrintingPodAction(jObjectPayload);
                 }
                 else if (action.StartsWith("Research."))
                 {
