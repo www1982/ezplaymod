@@ -11,6 +11,7 @@ namespace EZPlay.Patches
         {
             EZPlay.Core.ServiceContainer.Resolve<EventSocketServer>().BroadcastEvent("DuplicantDeath", new
             {
+                worldId = __instance.GetMyWorldId(),
                 DuplicantName = __instance.name
             });
         }

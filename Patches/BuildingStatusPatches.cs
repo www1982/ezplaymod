@@ -19,6 +19,7 @@ namespace EZPlay.Patches
                 var building = smi.master.gameObject;
                 var payload = new
                 {
+                    worldId = building.GetMyWorldId(),
                     buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
                     buildingName = building.GetProperName(),
                     cell = Grid.PosToCell(building.transform.position)
@@ -43,6 +44,7 @@ namespace EZPlay.Patches
 
             var payload = new
             {
+                worldId = building.GetMyWorldId(),
                 buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
                 buildingName = building.GetProperName(),
                 cell = Grid.PosToCell(building.transform.position),
@@ -62,6 +64,7 @@ namespace EZPlay.Patches
         {
             var payload = new
             {
+                worldId = __instance.GetMyWorldId(),
                 storageId = __instance.GetComponent<KPrefabID>().InstanceID.ToString(),
                 changedItems = new[] { new {
                     tag = go.PrefabID().ToString(),
@@ -81,6 +84,7 @@ namespace EZPlay.Patches
         {
             var payload = new
             {
+                worldId = __instance.GetMyWorldId(),
                 storageId = __instance.GetComponent<KPrefabID>().InstanceID.ToString(),
                 changedItems = new[] { new {
                     tag = go.PrefabID().ToString(),
@@ -108,6 +112,7 @@ namespace EZPlay.Patches
 
                 var payload = new
                 {
+                    worldId = building.GetMyWorldId(),
                     buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
                     buildingName = building.GetProperName(),
                     cell = Grid.PosToCell(building.transform.position),

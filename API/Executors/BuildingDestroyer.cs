@@ -15,7 +15,13 @@ namespace EZPlay.API.Executors
             public int Y { get; set; }
         }
 
-        public static ExecutionResult Execute(string jsonPayload)
+        /// <summary>
+        /// Destroys a building at a specified location in a given world.
+        /// </summary>
+        /// <param name="worldId">The ID of the world where the building is located.</param>
+        /// <param name="jsonPayload">A JSON string containing the 'X' and 'Y' coordinates of the building.</param>
+        /// <returns>An execution result indicating success or failure.</returns>
+        public static ExecutionResult Execute(int worldId, string jsonPayload)
         {
             if (string.IsNullOrEmpty(jsonPayload))
             {
@@ -37,21 +43,27 @@ namespace EZPlay.API.Executors
                 throw new ApiException(400, "Invalid payload structure. Requires 'X' and 'Y' integer fields.");
             }
 
-            var cell = Grid.PosToCell(new Vector3(request.X, request.Y, 0));
-            if (!Grid.IsValidCell(cell))
+            var worldContainer = ClusterManager.Instance.GetWorld(worldId);
+            if (worldContainer == null)
             {
-                throw new ApiException(400, $"Invalid coordinates ({request.X}, {request.Y}).");
+                throw new ApiException(404, $"World with ID {worldId} not found.");
+            }
+
+            var cell = Grid.PosToCell(new Vector3(request.X, request.Y, 0));
+            if (!Grid.IsValidCellInWorld(cell, worldId))
+            {
+                throw new ApiException(400, $"Invalid coordinates ({request.X}, {request.Y}) in world {worldId}.");
             }
 
             var building = Grid.Objects[cell, (int)ObjectLayer.Building];
 
-            if (building != null)
+            if (building != null && building.GetMyWorldId() == worldId)
             {
                 Util.KDestroyGameObject(building);
-                return new ExecutionResult { Success = true, Message = $"Building at ({request.X}, {request.Y}) destroyed." };
+                return new ExecutionResult { Success = true, Message = $"Building at ({request.X}, {request.Y}) in world {worldId} destroyed." };
             }
 
-            throw new ApiException(404, $"No building found at ({request.X}, {request.Y}).");
+            throw new ApiException(404, $"No building found at ({request.X}, {request.Y}) in world {worldId}.");
         }
     }
 }

@@ -15,8 +15,9 @@ namespace EZPlay.API.Executors
             public string ActionName { get; set; }
         }
 
-        public static ExecutionResult Execute(string jsonPayload)
+        public static ExecutionResult Execute(int worldId, string jsonPayload)
         {
+            // worldId is ignored for global actions, but included for API consistency.
             if (string.IsNullOrEmpty(jsonPayload))
             {
                 throw new ApiException(400, "Payload cannot be null or empty.");

@@ -24,7 +24,7 @@ namespace EZPlay.API.Executors
             public bool IsProperty { get; set; }
         }
 
-        public static ExecutionResult Execute(string jsonPayload)
+        public static ExecutionResult Execute(int worldId, string jsonPayload)
         {
             _whitelist = ServiceContainer.Resolve<ISecurityWhitelist>();
 
@@ -58,10 +58,10 @@ namespace EZPlay.API.Executors
                 throw new ApiException(403, $"Access to member '{request.MemberName}' on component '{request.ComponentName}' is not allowed.");
             }
 
-            var go = GetGameObjectById(request.GameObjectId);
+            var go = GetGameObjectById(request.GameObjectId, worldId);
             if (go == null)
             {
-                throw new ApiException(404, $"GameObject with ID '{request.GameObjectId}' not found.");
+                throw new ApiException(404, $"GameObject with ID '{request.GameObjectId}' not found in world {worldId}.");
             }
 
             var component = go.GetComponent(request.ComponentName);
@@ -99,10 +99,10 @@ namespace EZPlay.API.Executors
             }
         }
 
-        private static GameObject GetGameObjectById(int id)
+        private static GameObject GetGameObjectById(int id, int worldId)
         {
             // Correct way to find all GameObjects, as GameObject is not a Component.
-            return Resources.FindObjectsOfTypeAll<GameObject>().FirstOrDefault(go => go.GetInstanceID() == id);
+            return Resources.FindObjectsOfTypeAll<GameObject>().FirstOrDefault(go => go.GetInstanceID() == id && go.GetMyWorldId() == worldId);
         }
     }
 }

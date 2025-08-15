@@ -16,6 +16,7 @@ namespace EZPlay.Patches
             var position = __instance.transform.position;
             _eventBroadcaster?.BroadcastEvent("StateChange.GeyserStateChanged", new
             {
+                worldId = __instance.GetMyWorldId(),
                 GeyserName = __instance.GetProperName(),
                 Position = new { X = position.x, Y = position.y },
                 OldState = old_state.ToString(),

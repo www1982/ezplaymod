@@ -12,7 +12,7 @@ namespace EZPlay.API.Queries
             public int Y { get; set; }
         }
 
-        public static object Execute(string jsonPayload)
+        public static object Execute(int worldId, string jsonPayload)
         {
             var request = JsonConvert.DeserializeObject<GridQueryRequest>(jsonPayload);
             if (request == null)
@@ -20,19 +20,34 @@ namespace EZPlay.API.Queries
                 throw new ArgumentException("Invalid payload for grid query.");
             }
 
-            var cell = Grid.PosToCell(new Vector3(request.X, request.Y, 0));
-            var element = Grid.Element[cell];
-            var temperature = Grid.Temperature[cell];
-            var mass = Grid.Mass[cell];
-            var building = Grid.Objects[cell, (int)ObjectLayer.Building];
-
-            return new
+            var worldContainer = ClusterManager.Instance.GetWorld(worldId);
+            if (worldContainer == null)
             {
-                Element = element.id.ToString(),
-                Temperature = temperature,
-                Mass = mass,
-                BuildingName = building != null ? building.GetProperName() : "None"
-            };
+                throw new ArgumentException($"Invalid worldId: {worldId}");
+            }
+
+            var originalWorldId = ClusterManager.Instance.activeWorldId;
+            try
+            {
+                ClusterManager.Instance.SetActiveWorld(worldId);
+                var cell = Grid.PosToCell(new Vector3(request.X, request.Y, 0));
+                var element = Grid.Element[cell];
+                var temperature = Grid.Temperature[cell];
+                var mass = Grid.Mass[cell];
+                var building = Grid.Objects[cell, (int)ObjectLayer.Building];
+
+                return new
+                {
+                    Element = element.id.ToString(),
+                    Temperature = temperature,
+                    Mass = mass,
+                    BuildingName = building != null ? building.GetProperName() : "None"
+                };
+            }
+            finally
+            {
+                ClusterManager.Instance.SetActiveWorld(originalWorldId);
+            }
         }
     }
 }

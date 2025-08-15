@@ -234,6 +234,4 @@
 | **OPT-01**  | **优化** | API 和事件服务器的端口号被硬编码          | 将端口号移至外部 `config.json` 文件，允许用户自定义。                                               |
 | **OPT-02**  | **优化** | 识别新打印复制人的逻辑存在竞态条件风险    | 组合使用 `Prefix` 和 `Postfix` 补丁修补 `Telepad.OnAcceptDelivery`，以更精确地关联新生成的复制人。  |
 | **OPT-03**  | **优化** | 复制人压力崩溃类型被硬编码 (`BingeEat`)   | 通过 `StressMonitor.Instance.GetCurrentReactable()` 获取真实的压力反应类型。                        |
-| **OPT-04**  | **优化** | API 中通过名字查找复制人的的方式不够健壮  | API 应强制使用 `KPrefabID.InstanceID` 作为操作复制人的唯一标识符。                                  |
-| **OPT-05**  | **优化** | 拆除建筑时，无法获取回收的资源列表        | 使用 `Prefix` 补丁在 `Deconstructable.OnCompleteWork` 执行前记录材料，在 `Postfix` 中发送。         |
 | **OPT-06**  | **优化** | 存储事件的捕获方式低效且脆弱              | 移除对 `Storage.Store/Remove` 的补丁，改用原生的 `OnStorageChange` 事件，并实现事件聚合与延迟广播。 |

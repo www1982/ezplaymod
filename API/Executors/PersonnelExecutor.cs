@@ -28,24 +28,24 @@ namespace EZPlay.API.Executors
                 { "TopPriority", (PriorityScreen.PriorityClass.topPriority, 5) } // Alias for VeryHigh
             };
 
-        public static ExecutionResult HandleDuplicantAction(string action, JObject payload)
+        public static object HandleDuplicantAction(string action, int worldId, JObject payload)
         {
             switch (action)
             {
                 case "Duplicant.SetPriorities":
-                    return SetPriorities(payload);
+                    return SetPriorities(worldId, payload);
                 case "Duplicant.BatchSetPriorities":
-                    return BatchSetPriorities(payload);
+                    return BatchSetPriorities(worldId, payload);
                 case "Duplicant.LearnSkill":
-                    return LearnSkill(payload);
+                    return LearnSkill(worldId, payload);
                 case "Duplicant.SetConsumables":
-                    return SetConsumables(payload);
+                    return SetConsumables(worldId, payload);
                 default:
                     throw new ApiException(400, $"Unknown duplicant action: {action}");
             }
         }
 
-        private static ExecutionResult SetPriorities(JObject payload)
+        private static ExecutionResult SetPriorities(int worldId, JObject payload)
         {
             if (payload == null)
             {
@@ -66,12 +66,12 @@ namespace EZPlay.API.Executors
             }
             var priorities = prioritiesToken as JObject;
 
-            return SetDuplicantPriorities(duplicantId, priorities);
+            return SetDuplicantPriorities(worldId, duplicantId, priorities);
         }
 
-        private static ExecutionResult SetDuplicantPriorities(string duplicantId, JObject priorities)
+        private static ExecutionResult SetDuplicantPriorities(int worldId, string duplicantId, JObject priorities)
         {
-            var result = TrySetDuplicantPriorities(duplicantId, priorities);
+            var result = TrySetDuplicantPriorities(worldId, duplicantId, priorities);
             if (!result.Success)
             {
                 // Re-throw as an exception to maintain original behavior for single-set API
@@ -80,12 +80,12 @@ namespace EZPlay.API.Executors
             return result;
         }
 
-        private static ExecutionResult TrySetDuplicantPriorities(string duplicantId, JObject priorities)
+        private static ExecutionResult TrySetDuplicantPriorities(int worldId, string duplicantId, JObject priorities)
         {
-            var minionIdentity = Components.LiveMinionIdentities.Items.FirstOrDefault(m => m.name == duplicantId || m.GetProperName() == duplicantId);
+            var minionIdentity = Components.LiveMinionIdentities.GetWorldItems(worldId).FirstOrDefault(m => m.name == duplicantId || m.GetProperName() == duplicantId);
             if (minionIdentity == null)
             {
-                return new ExecutionResult { Success = false, StatusCode = 404, Message = $"Duplicant with id '{duplicantId}' not found.", Data = new { duplicant_id = duplicantId } };
+                return new ExecutionResult { Success = false, StatusCode = 404, Message = $"Duplicant with id '{duplicantId}' not found in world {worldId}.", Data = new { duplicant_id = duplicantId, world_id = worldId } };
             }
 
             var choreConsumer = minionIdentity.GetComponent<ChoreConsumer>();
@@ -130,7 +130,7 @@ namespace EZPlay.API.Executors
             };
         }
 
-        private static ExecutionResult BatchSetPriorities(JObject payload)
+        private static ExecutionResult BatchSetPriorities(int worldId, JObject payload)
         {
             if (payload?["requests"] is not JArray requests)
             {
@@ -160,7 +160,7 @@ namespace EZPlay.API.Executors
                     continue;
                 }
 
-                var result = TrySetDuplicantPriorities(duplicantId, priorities);
+                var result = TrySetDuplicantPriorities(worldId, duplicantId, priorities);
                 results.Add(result);
             }
 
@@ -179,7 +179,7 @@ namespace EZPlay.API.Executors
             };
         }
 
-        private static ExecutionResult LearnSkill(JObject payload)
+        private static ExecutionResult LearnSkill(int worldId, JObject payload)
         {
             if (payload == null)
             {
@@ -200,10 +200,10 @@ namespace EZPlay.API.Executors
             }
             var skillId = skillIdToken.ToString();
 
-            var minionIdentity = Components.LiveMinionIdentities.Items.FirstOrDefault(m => m.name == duplicantId || m.GetProperName() == duplicantId);
+            var minionIdentity = Components.LiveMinionIdentities.GetWorldItems(worldId).FirstOrDefault(m => m.name == duplicantId || m.GetProperName() == duplicantId);
             if (minionIdentity == null)
             {
-                throw new ApiException(404, $"Duplicant with id '{duplicantId}' not found.");
+                throw new ApiException(404, $"Duplicant with id '{duplicantId}' not found in world {worldId}.");
             }
 
             var minionResume = minionIdentity.GetComponent<MinionResume>();
@@ -227,7 +227,7 @@ namespace EZPlay.API.Executors
             return new ExecutionResult { Success = true, Message = $"Skill '{skillId}' learned by duplicant '{duplicantId}'." };
         }
 
-        private static ExecutionResult SetConsumables(JObject payload)
+        private static ExecutionResult SetConsumables(int worldId, JObject payload)
         {
             if (payload == null)
             {
@@ -241,10 +241,10 @@ namespace EZPlay.API.Executors
             }
             var duplicantId = duplicantIdToken.ToString();
 
-            var minionIdentity = Components.LiveMinionIdentities.Items.FirstOrDefault(m => m.name == duplicantId || m.GetProperName() == duplicantId);
+            var minionIdentity = Components.LiveMinionIdentities.GetWorldItems(worldId).FirstOrDefault(m => m.name == duplicantId || m.GetProperName() == duplicantId);
             if (minionIdentity == null)
             {
-                throw new ApiException(404, $"Duplicant with id '{duplicantId}' not found.");
+                throw new ApiException(404, $"Duplicant with id '{duplicantId}' not found in world {worldId}.");
             }
 
             var consumer = minionIdentity.GetComponent<ConsumableConsumer>();
@@ -272,16 +272,16 @@ namespace EZPlay.API.Executors
             return new ExecutionResult { Success = true, Message = $"Consumable permissions updated for duplicant '{duplicantId}'." };
         }
 
-        public static ExecutionResult HandleScheduleAction(string action, JObject payload)
+        public static object HandleScheduleAction(string action, int worldId, JObject payload)
         {
             switch (action)
             {
                 case "Schedule.Create":
-                    return CreateSchedule(payload);
+                    return CreateSchedule(payload); // Schedules are global, no worldId needed
                 case "Schedule.UpdateBlocks":
-                    return UpdateScheduleBlocks(payload);
+                    return UpdateScheduleBlocks(payload); // Schedules are global, no worldId needed
                 case "Schedule.AssignDuplicant":
-                    return AssignDuplicantToSchedule(payload);
+                    return AssignDuplicantToSchedule(worldId, payload);
                 default:
                     throw new ApiException(400, $"Unknown schedule action: {action}");
             }
@@ -369,7 +369,7 @@ namespace EZPlay.API.Executors
             return new ExecutionResult { Success = true, Message = $"Schedule '{scheduleName}' blocks updated." };
         }
 
-        private static ExecutionResult AssignDuplicantToSchedule(JObject payload)
+        private static ExecutionResult AssignDuplicantToSchedule(int worldId, JObject payload)
         {
             if (payload == null)
             {
@@ -390,10 +390,10 @@ namespace EZPlay.API.Executors
             }
             var scheduleName = scheduleNameToken.ToString();
 
-            var minionIdentity = Components.LiveMinionIdentities.Items.FirstOrDefault(m => m.name == duplicantId || m.GetProperName() == duplicantId);
+            var minionIdentity = Components.LiveMinionIdentities.GetWorldItems(worldId).FirstOrDefault(m => m.name == duplicantId || m.GetProperName() == duplicantId);
             if (minionIdentity == null)
             {
-                throw new ApiException(404, $"Duplicant with id '{duplicantId}' not found.");
+                throw new ApiException(404, $"Duplicant with id '{duplicantId}' not found in world {worldId}.");
             }
 
             var scheduleManager = ScheduleManager.Instance;
@@ -424,25 +424,26 @@ namespace EZPlay.API.Executors
             return new ExecutionResult { Success = true, Message = $"Duplicant '{duplicantId}' assigned to schedule '{scheduleName}'." };
         }
 
-        public static ExecutionResult HandlePrintingPodAction(string action, JObject payload)
+        public static object HandlePrintingPodAction(int worldId, JObject payload)
         {
+            var action = payload["action"]?.ToString();
             switch (action)
             {
                 case "PrintingPod.GetChoices":
-                    return GetPrintingPodChoices();
+                    return GetPrintingPodChoices(worldId);
                 case "PrintingPod.SelectChoice":
-                    return SelectPrintingPodChoice(payload);
+                    return SelectPrintingPodChoice(worldId, payload);
                 default:
                     throw new ApiException(400, $"Unknown printing pod action: {action}");
             }
         }
 
-        private static ExecutionResult GetPrintingPodChoices()
+        private static ExecutionResult GetPrintingPodChoices(int worldId)
         {
-            var telepad = Components.Telepads.Items.FirstOrDefault();
+            var telepad = Components.Telepads.GetWorldItems(worldId).FirstOrDefault();
             if (telepad == null)
             {
-                throw new ApiException(500, "Telepad instance not found.");
+                throw new ApiException(500, $"Telepad instance not found in world {worldId}.");
             }
 
             var immigration = Immigration.Instance;
@@ -477,7 +478,7 @@ namespace EZPlay.API.Executors
             return new ExecutionResult { Success = true, Message = "Printing pod choices retrieved.", Data = new { choices = choices } };
         }
 
-        private static ExecutionResult SelectPrintingPodChoice(JObject payload)
+        private static ExecutionResult SelectPrintingPodChoice(int worldId, JObject payload)
         {
             if (payload == null)
             {
@@ -491,10 +492,10 @@ namespace EZPlay.API.Executors
             }
             var choiceIndex = choiceIndexToken.ToObject<int>();
 
-            var telepad = Components.Telepads.Items.FirstOrDefault();
+            var telepad = Components.Telepads.GetWorldItems(worldId).FirstOrDefault();
             if (telepad == null)
             {
-                throw new ApiException(500, "Telepad instance not found.");
+                throw new ApiException(500, $"Telepad instance not found in world {worldId}.");
             }
 
             var immigration = Immigration.Instance;
@@ -525,8 +526,10 @@ namespace EZPlay.API.Executors
             return new ExecutionResult { Success = true, Message = $"Choice {choiceIndex} selected." };
         }
 
-        public static ExecutionResult HandleResearchAction(string action, JObject payload)
+        public static object HandleResearchAction(string action, int worldId, JObject payload)
         {
+            // Research is global, so worldId is ignored for now.
+            // This maintains API consistency.
             switch (action)
             {
                 case "Research.SetQueue":

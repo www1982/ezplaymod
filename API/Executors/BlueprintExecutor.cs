@@ -19,7 +19,13 @@ namespace EZPlay.API.Executors
         /// </summary>
         /// <param name="jsonPayload">A JSON string containing the 'name' for the blueprint and the 'area' to scan.</param>
         /// <returns>An object containing the result of the operation, either the created blueprint or an error message.</returns>
-        public static ExecutionResult CreateFromGame(string jsonPayload)
+        /// <summary>
+        /// Scans a specified area in a given world and creates a blueprint from it.
+        /// </summary>
+        /// <param name="worldId">The ID of the world to scan.</param>
+        /// <param name="jsonPayload">A JSON string containing the 'name' for the blueprint and the 'area' to scan.</param>
+        /// <returns>An object containing the result of the operation, either the created blueprint or an error message.</returns>
+        public static ExecutionResult CreateFromGame(int worldId, string jsonPayload)
         {
             if (string.IsNullOrEmpty(jsonPayload))
             {
@@ -53,7 +59,13 @@ namespace EZPlay.API.Executors
 
             try
             {
-                var scannedBlueprint = BlueprintScanner.ScanAreaToBlueprint(payload.Name, payload.Area);
+                var worldContainer = ClusterManager.Instance.GetWorld(worldId);
+                if (worldContainer == null)
+                {
+                    throw new ApiException(404, $"World with ID {worldId} not found.");
+                }
+
+                var scannedBlueprint = BlueprintScanner.ScanAreaToBlueprint(payload.Name, worldId, payload.Area);
                 return new ExecutionResult { Success = true, Message = "Blueprint created successfully.", Data = scannedBlueprint };
             }
             catch (Exception ex)

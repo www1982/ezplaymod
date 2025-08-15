@@ -14,6 +14,7 @@ namespace EZPlay.Patches
         {
             var payload = new
             {
+                worldId = __instance.GetMyWorldId(),
                 geyserId = __instance.GetComponent<KPrefabID>().InstanceID.ToString(),
                 geyserType = __instance.GetComponent<KPrefabID>().PrefabTag.ToString(),
                 state = "Erupting",
@@ -32,6 +33,7 @@ namespace EZPlay.Patches
         {
             var payload = new
             {
+                worldId = __instance.GetMyWorldId(),
                 geyserId = __instance.GetComponent<KPrefabID>().InstanceID.ToString(),
                 geyserType = __instance.GetComponent<KPrefabID>().PrefabTag.ToString(),
                 state = "Idle",
@@ -41,26 +43,22 @@ namespace EZPlay.Patches
         }
     }
 
-    // //[HarmonyPatch(typeof(Game), "Trigger")]
-    // public static class NewElementDiscoveredPatch
-    // {
-    //     private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
+    [HarmonyPatch(typeof(DiscoveredResources), "OnDiscover")]
+    public static class NewElementDiscoveredPatch
+    {
+        private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
-    //     public static void Postfix(Game __instance, int hash, object data)
-    //     {
-    //         if (hash != (int)GameHashes.NewElementDiscovered) return;
+        public static void Postfix(Tag tag, Tag category)
+        {
+            var payload = new
+            {
+                elementId = tag.ToString(),
+                category = category.ToString()
+            };
+            _eventBroadcaster?.BroadcastEvent("Milestone.World.NewElementDiscovered", payload);
+        }
+    }
 
-    //         if (data is NewElementDiscoveredMessage message)
-    //         {
-    //             var payload = new
-    //             {
-    //                 elementId = message.new_element.ToString(),
-    //                 cell = message.cell
-    //             };
-    //             _eventBroadcaster?.BroadcastEvent("Milestone.World.NewElementDiscovered", payload);
-    //         }
-    //     }
-    // }
 
     [HarmonyPatch(typeof(Klei.AI.MeteorShowerEvent.States), "TriggerMeteorGlobalEvent")]
     public static class MeteorShowerPatch

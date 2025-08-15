@@ -24,10 +24,24 @@ namespace EZPlay.Blueprints
             _whitelist = ServiceContainer.Resolve<ISecurityWhitelist>();
         }
 
-        public static Blueprint CreateBlueprint(string name, List<string> objectIds, string anchorObjectId)
+        public static Blueprint CreateBlueprint(int worldId, string name, List<string> objectIds, string anchorObjectId)
         {
-            var anchorGo = GameObjectManager.GetObject(anchorObjectId);
-            if (anchorGo == null) throw new ArgumentException($"Anchor object with ID '{anchorObjectId}' not found.");
+            var world = ClusterManager.Instance.GetWorld(worldId);
+            if (world == null) throw new ArgumentException($"World with ID '{worldId}' not found.");
+
+            var kpids = world.gameObject.GetComponentsInChildren<KPrefabID>();
+
+            GameObject anchorGo = null;
+            foreach (var kpid in kpids)
+            {
+                if (kpid.InstanceID.ToString() == anchorObjectId)
+                {
+                    anchorGo = kpid.gameObject;
+                    break;
+                }
+            }
+
+            if (anchorGo == null) throw new ArgumentException($"Anchor object with ID '{anchorObjectId}' not found in world {worldId}.");
 
             var anchorPos = Grid.PosToXY(anchorGo.transform.position);
 
@@ -44,7 +58,15 @@ namespace EZPlay.Blueprints
 
             foreach (var objectId in objectIds)
             {
-                var go = GameObjectManager.GetObject(objectId);
+                GameObject go = null;
+                foreach (var kpid_inner in kpids)
+                {
+                    if (kpid_inner.InstanceID.ToString() == objectId)
+                    {
+                        go = kpid_inner.gameObject;
+                        break;
+                    }
+                }
                 if (go == null) continue;
 
                 var kpid = go.GetComponent<KPrefabID>();
@@ -135,11 +157,12 @@ namespace EZPlay.Blueprints
             return JsonConvert.DeserializeObject<Blueprint>(json);
         }
 
-        public static object PlaceBlueprint(Blueprint blueprint)
+        public static object PlaceBlueprint(int worldId, Blueprint blueprint)
         {
             // For now, we'll place it at cell 0,0. A more robust implementation would take a position.
-            BlueprintPlacer.PlaceBlueprint(blueprint, 0);
-            return new { success = true, message = $"Blueprint '{blueprint.Name}' placement started." };
+            // For now, we'll place it at cell 0,0. A more robust implementation would take a position.
+            BlueprintPlacer.PlaceBlueprint(worldId, blueprint, 0);
+            return new { success = true, message = $"Blueprint '{blueprint.Name}' placement started in world {worldId}." };
         }
     }
 }

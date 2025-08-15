@@ -13,7 +13,7 @@ namespace EZPlay.API.Queries
             public int EndY { get; set; }
         }
 
-        public static object Execute(string jsonPayload)
+        public static object Execute(int worldId, string jsonPayload)
         {
             var request = JsonConvert.DeserializeObject<PathfindingRequest>(jsonPayload);
             if (request == null)
@@ -21,21 +21,30 @@ namespace EZPlay.API.Queries
                 throw new ArgumentException("Invalid payload for pathfinding query.");
             }
 
-            var startCell = Grid.PosToCell(new UnityEngine.Vector3(request.StartX, request.StartY, 0));
-            var endCell = Grid.PosToCell(new UnityEngine.Vector3(request.EndX, request.EndY, 0));
-
-            // Simplified check: Are the cells in the same room?
-            // This is a rough approximation of pathfinding but avoids complex API usage.
-            var roomProber = Game.Instance.roomProber;
-            var startCavity = roomProber.GetCavityForCell(startCell);
-            var endCavity = roomProber.GetCavityForCell(endCell);
-            bool pathExists = (startCavity != null && startCavity == endCavity);
-
-            return new
+            var originalWorldId = ClusterManager.Instance.activeWorldId;
+            try
             {
-                PathExists = pathExists,
-                Cost = -1 // Cost is not calculated in this simplified version
-            };
+                ClusterManager.Instance.SetActiveWorld(worldId);
+                var startCell = Grid.PosToCell(new UnityEngine.Vector3(request.StartX, request.StartY, 0));
+                var endCell = Grid.PosToCell(new UnityEngine.Vector3(request.EndX, request.EndY, 0));
+
+                // Simplified check: Are the cells in the same room?
+                // This is a rough approximation of pathfinding but avoids complex API usage.
+                var roomProber = Game.Instance.roomProber;
+                var startCavity = roomProber.GetCavityForCell(startCell);
+                var endCavity = roomProber.GetCavityForCell(endCell);
+                bool pathExists = (startCavity != null && startCavity == endCavity);
+
+                return new
+                {
+                    PathExists = pathExists,
+                    Cost = -1 // Cost is not calculated in this simplified version
+                };
+            }
+            finally
+            {
+                ClusterManager.Instance.SetActiveWorld(originalWorldId);
+            }
         }
     }
 }

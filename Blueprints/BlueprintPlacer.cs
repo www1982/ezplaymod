@@ -11,11 +11,11 @@ namespace EZPlay.Blueprints
         // 当一个 Chore 被创建时触发。传递的是 Chore 对象和其目标单元格。
         public static event Action<Chore, int> OnChoreCreated;
 
-        public static void PlaceBlueprint(Blueprint blueprint, int anchorCell)
+        public static void PlaceBlueprint(int worldId, Blueprint blueprint, int anchorCell)
         {
             var placerGo = new GameObject("BlueprintPlacerInstance");
             var placer = placerGo.AddComponent<BlueprintPlacerInstance>();
-            placer.Initialize(blueprint, anchorCell);
+            placer.Initialize(worldId, blueprint, anchorCell);
         }
 
         // 允许外部（例如，我们的补丁）触发事件
@@ -48,6 +48,7 @@ namespace EZPlay.Blueprints
 
         private Blueprint _blueprint;
         private int _anchorCell;
+        private int _worldId;
         private DeploymentPhase _currentPhase = DeploymentPhase.NotStarted;
         private Stage _currentStage = Stage.Digging;
         private PrioritySetting _masterPriority;
@@ -55,8 +56,9 @@ namespace EZPlay.Blueprints
         private List<Chore> _trackedChores = new List<Chore>();
         private HashSet<int> _cellsInCurrentStage = new HashSet<int>();
 
-        public void Initialize(Blueprint blueprint, int anchorCell)
+        public void Initialize(int worldId, Blueprint blueprint, int anchorCell)
         {
+            this._worldId = worldId;
             this._blueprint = blueprint;
             this._anchorCell = anchorCell;
             this._masterPriority = new PrioritySetting(PriorityScreen.PriorityClass.basic, 5);

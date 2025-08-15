@@ -12,7 +12,7 @@ namespace EZPlay.API.Queries
             public string ComponentName { get; set; }
         }
 
-        public static object Execute(string jsonPayload)
+        public static object Execute(int worldId, string jsonPayload)
         {
             var request = JsonConvert.DeserializeObject<FindRequest>(jsonPayload);
             if (request == null || string.IsNullOrEmpty(request.ComponentName))
@@ -34,6 +34,7 @@ namespace EZPlay.API.Queries
 
             var objects = Resources.FindObjectsOfTypeAll(componentType)
                 .OfType<Component>()
+                .Where(c => c.gameObject.GetMyWorldId() == worldId)
                 .Select(c => new
                 {
                     GameObjectId = c.gameObject.GetInstanceID(),

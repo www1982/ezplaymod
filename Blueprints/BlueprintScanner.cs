@@ -26,7 +26,14 @@ namespace EZPlay.Blueprints
         /// <param name="name">要创建的蓝图的名称。</param>
         /// <param name="area">要扫描的游戏世界区域。</param>
         /// <returns>一个包含扫描区域内所有对象信息的蓝图对象。</returns>
-        public static Blueprint ScanAreaToBlueprint(string name, Rect area)
+        /// <summary>
+        /// Scans a specified rectangular area in a given world and converts all found objects into a blueprint.
+        /// </summary>
+        /// <param name="name">The name for the blueprint to be created.</param>
+        /// <param name="worldId">The ID of the world to scan.</param>
+        /// <param name="area">The area in the game world to scan.</param>
+        /// <returns>A blueprint object containing all the object information from the scanned area.</returns>
+        public static Blueprint ScanAreaToBlueprint(string name, int worldId, Rect area)
         {
             var blueprint = new Blueprint
             {
@@ -44,9 +51,9 @@ namespace EZPlay.Blueprints
                     var cellOffset = new Vector2I(x, y);
                     int cell = Grid.XYToCell(areaMin.x + x, areaMin.y + y);
 
-                    if (!Grid.IsValidCell(cell)) continue;
+                    if (!Grid.IsValidCellInWorld(cell, worldId)) continue;
 
-                    ScanCellForObjects(cell, cellOffset, blueprint);
+                    ScanCellForObjects(cell, worldId, cellOffset, blueprint);
                 }
             }
 
@@ -56,12 +63,14 @@ namespace EZPlay.Blueprints
         /// <summary>
         /// 扫描单个单元格中的所有指定图层，并将找到的对象添加到蓝图中。
         /// </summary>
-        private static void ScanCellForObjects(int cell, Vector2I offset, Blueprint blueprint)
+        private static void ScanCellForObjects(int cell, int worldId, Vector2I offset, Blueprint blueprint)
         {
             foreach (int layer in ObjectLayers)
             {
                 GameObject gameObject = Grid.Objects[cell, layer];
                 if (gameObject == null) continue;
+
+                if (gameObject.GetMyWorldId() != worldId) continue;
 
                 // 确保我们只处理每个对象一次（基于其主建筑组件）
                 var building = gameObject.GetComponent<Building>();
