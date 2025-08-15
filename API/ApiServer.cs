@@ -6,6 +6,7 @@ using EZPlay.API.Exceptions;
 using EZPlay.API.Models;
 using EZPlay.GameState;
 using EZPlay.Core;
+using EZPlay.Core.Interfaces;
 using EZPlay.Utils;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -18,15 +19,9 @@ namespace EZPlay.API
     {
         private static WebSocketServer _server;
         private static Thread _serverThread;
-        // Simple IP whitelist for security
-        private static readonly List<IPAddress> AllowedIPs = new List<IPAddress>
-        {
-            IPAddress.Parse("127.0.0.1"),
-            IPAddress.Loopback,
-            IPAddress.IPv6Loopback
-        };
+        private static readonly ISecurityWhitelist SecurityWhitelist = ServiceContainer.Resolve<ISecurityWhitelist>();
 
-        public static void Start()
+        public static void Start(int port = 8080)
         {
             if (_server != null && _server.IsListening)
             {
@@ -35,11 +30,11 @@ namespace EZPlay.API
 
             _serverThread = new Thread(() =>
             {
-                _server = new WebSocketServer("ws://0.0.0.0:8080");
+                _server = new WebSocketServer($"ws://0.0.0.0:{port}");
                 _server.AddWebSocketService<GameService>("/api");
                 _server.Start();
 
-                Console.WriteLine("[EZPlay.ApiServer] WebSocket Server started on ws://0.0.0.0:8080/api");
+                Console.WriteLine($"[EZPlay.ApiServer] WebSocket Server started on ws://0.0.0.0:{port}/api");
             });
             _serverThread.IsBackground = true;
             _serverThread.Start();
@@ -70,7 +65,7 @@ namespace EZPlay.API
 
         public static bool IsClientAllowed(IPAddress ipAddress)
         {
-            return AllowedIPs.Contains(ipAddress);
+            return SecurityWhitelist.IsIPAllowed(ipAddress);
         }
     }
 

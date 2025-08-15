@@ -2,12 +2,14 @@ using EZPlay.Core.Interfaces;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 
 namespace EZPlay.Core
 {
     public class SecurityWhitelist : ISecurityWhitelist
     {
         private readonly Dictionary<string, HashSet<string>> _allowedMembers = new Dictionary<string, HashSet<string>>();
+        private readonly List<IPAddress> _allowedIPs = new List<IPAddress>();
         private readonly ILogger _logger;
 
         public SecurityWhitelist(ILogger logger, string configPath)
@@ -29,7 +31,20 @@ namespace EZPlay.Core
 
             foreach (var rule in rules)
             {
-                _allowedMembers[rule.Key] = new HashSet<string>(rule.Value);
+                if (rule.Key == "ips")
+                {
+                    foreach (var ipStr in rule.Value)
+                    {
+                        if (IPAddress.TryParse(ipStr, out var ip))
+                        {
+                            _allowedIPs.Add(ip);
+                        }
+                    }
+                }
+                else
+                {
+                    _allowedMembers[rule.Key] = new HashSet<string>(rule.Value);
+                }
             }
             _logger.Info($"Whitelist loaded successfully from: {configPath}");
         }
@@ -47,6 +62,11 @@ namespace EZPlay.Core
             }
 
             return false;
+        }
+
+        public bool IsIPAllowed(IPAddress ipAddress)
+        {
+            return _allowedIPs.Contains(ipAddress);
         }
     }
 }

@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace EZPlay.Patches
 {
-    //[HarmonyPatch(typeof(Geyser), "OnStartErupting")]
+    [HarmonyPatch(typeof(Geyser), "OnStartErupting")]
     public static class GeyserStartEruptingPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -23,7 +23,7 @@ namespace EZPlay.Patches
         }
     }
 
-    //[HarmonyPatch(typeof(Geyser), "OnStopErupting")]
+    [HarmonyPatch(typeof(Geyser), "OnStopErupting")]
     public static class GeyserStopEruptingPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -62,7 +62,7 @@ namespace EZPlay.Patches
     //     }
     // }
 
-    //[HarmonyPatch(typeof(Klei.AI.MeteorShowerEvent.States), "TriggerMeteorGlobalEvent")]
+    [HarmonyPatch(typeof(Klei.AI.MeteorShowerEvent.States), "TriggerMeteorGlobalEvent")]
     public static class MeteorShowerPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();

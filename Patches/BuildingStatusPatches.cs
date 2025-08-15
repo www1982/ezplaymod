@@ -7,38 +7,28 @@ using UnityEngine;
 
 namespace EZPlay.Patches
 {
-    //[HarmonyPatch(typeof(Repairable), "OnSpawn")]
-    public static class BuildingBrokenPatch
+    [HarmonyPatch(typeof(Repairable.States), "InitializeStates")]
+    public static class Repairable_InitializeStates_Patch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
 
-        public static void Postfix(Repairable __instance)
+        public static void Postfix(Repairable.States __instance)
         {
-            var controller = __instance.GetComponent<StateMachineController>();
-            if (controller != null)
+            __instance.allowed.Enter(smi =>
             {
-                var smi = controller.GetSMI<Repairable.SMInstance>();
-                if (smi != null)
+                var building = smi.master.gameObject;
+                var payload = new
                 {
-                    var sm = smi.sm;
-                    sm.repaired.EventTransition(GameHashes.BuildingReceivedDamage, sm.allowed, event_smi =>
-                    {
-                        var building = event_smi.master.gameObject;
-                        var payload = new
-                        {
-                            buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
-                            buildingName = building.GetProperName(),
-                            cell = Grid.PosToCell(building.transform.position)
-                        };
-                        _eventBroadcaster?.BroadcastEvent("Alert.Building.Broken", payload);
-                        return event_smi.NeedsRepairs();
-                    });
-                }
-            }
+                    buildingId = building.GetComponent<KPrefabID>().InstanceID.ToString(),
+                    buildingName = building.GetProperName(),
+                    cell = Grid.PosToCell(building.transform.position)
+                };
+                _eventBroadcaster?.BroadcastEvent("Alert.Building.Broken", payload);
+            });
         }
     }
 
-    //[HarmonyPatch(typeof(Deconstructable), "OnCompleteWork")]
+    [HarmonyPatch(typeof(Deconstructable), "OnCompleteWork")]
     public static class BuildingDeconstructedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -63,7 +53,7 @@ namespace EZPlay.Patches
         }
     }
 
-    //[HarmonyPatch(typeof(Storage), "Store")]
+    [HarmonyPatch(typeof(Storage), "Store")]
     public static class StorageStorePatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -82,7 +72,7 @@ namespace EZPlay.Patches
         }
     }
 
-    //[HarmonyPatch(typeof(Storage), "Remove")]
+    [HarmonyPatch(typeof(Storage), "Remove")]
     public static class StorageRemovePatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -101,7 +91,7 @@ namespace EZPlay.Patches
         }
     }
 
-    //[HarmonyPatch(typeof(Overheatable.States), "InitializeStates")]
+    [HarmonyPatch(typeof(Overheatable.States), "InitializeStates")]
     public static class BuildingOverheatingPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();

@@ -6,41 +6,43 @@ using Klei.AI;
 
 namespace EZPlay.Patches
 {
-    ////[HarmonyPatch(typeof(CharacterSelectionController), "OnProceed")]
+    [HarmonyPatch(typeof(Telepad), "OnAcceptDelivery")]
     public static class DuplicantPrintedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
+        private static MinionStartingStats printedStats;
 
-        public static void Postfix(CharacterSelectionController __instance)
+        public static void Prefix(ITelepadDeliverable deliverable)
         {
-            var selectedDeliverablesField = typeof(CharacterSelectionController).GetField("selectedDeliverables", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var selectedDeliverables = (System.Collections.Generic.List<ITelepadDeliverable>)selectedDeliverablesField.GetValue(__instance);
-
-            if (selectedDeliverables == null || selectedDeliverables.Count == 0) return;
-
-            foreach (var deliverable in selectedDeliverables)
+            if (deliverable is MinionStartingStats stats)
             {
-                if (deliverable is MinionStartingStats minionStats)
-                {
-                    // This is a bit of a hack, as we don't have a direct reference to the spawned minion.
-                    // We'll find the most recently created minion and assume it's the one we just printed.
-                    var minion = Components.LiveMinionIdentities.Items.OrderByDescending(m => m.arrivalTime).FirstOrDefault();
-                    if (minion == null) return;
-
-                    var payload = new
-                    {
-                        duplicantId = minion.GetComponent<KPrefabID>().InstanceID.ToString(),
-                        duplicantName = minion.GetProperName(),
-                        traits = minion.GetComponent<Traits>().GetTraitIds()
-                    };
-
-                    _eventBroadcaster?.BroadcastEvent("Lifecycle.Duplicant.Printed", payload);
-                }
+                printedStats = stats;
             }
+        }
+
+        public static void Postfix()
+        {
+            if (printedStats == null) return;
+
+            var minion = Components.LiveMinionIdentities.Items.FirstOrDefault(m =>
+                m.GetComponent<Traits>().GetTraitIds().SequenceEqual(printedStats.Traits.Select(t => t.Id)));
+
+            if (minion == null) return;
+
+            var payload = new
+            {
+                duplicantId = minion.GetComponent<KPrefabID>().InstanceID.ToString(),
+                duplicantName = minion.GetProperName(),
+                traits = minion.GetComponent<Traits>().GetTraitIds()
+            };
+
+            _eventBroadcaster?.BroadcastEvent("Lifecycle.Duplicant.Printed", payload);
+
+            printedStats = null;
         }
     }
 
-    //[HarmonyPatch(typeof(DeathMonitor.Instance), "Kill")]
+    [HarmonyPatch(typeof(DeathMonitor.Instance), "Kill")]
     public static class DuplicantDeathPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -84,7 +86,7 @@ namespace EZPlay.Patches
         }
     }
 
-    //[HarmonyPatch(typeof(MinionResume), "MasterSkill")]
+    [HarmonyPatch(typeof(MinionResume), "MasterSkill")]
     public static class DuplicantGainedSkillPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -105,7 +107,7 @@ namespace EZPlay.Patches
         }
     }
 
-    //[HarmonyPatch(typeof(StressMonitor.Instance), "HasHadEnough")]
+    [HarmonyPatch(typeof(StressMonitor.Instance), "HasHadEnough")]
     public static class DuplicantStressBreakPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -122,14 +124,14 @@ namespace EZPlay.Patches
                 duplicantId = minionIdentity.GetComponent<KPrefabID>().InstanceID.ToString(),
                 duplicantName = minionIdentity.GetProperName(),
                 stressPercent = __instance.stress.value,
-                breakType = "BingeEat" // This is an assumption
+                breakType = __instance.CreateConcernReactable()?.id ?? "Unknown"
             };
 
             _eventBroadcaster?.BroadcastEvent("Alert.Duplicant.StressBreak", payload);
         }
     }
 
-    //[HarmonyPatch(typeof(Sicknesses), "CreateInstance")]
+    [HarmonyPatch(typeof(Sicknesses), "CreateInstance")]
     public static class DuplicantDiseaseGainedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
@@ -149,7 +151,7 @@ namespace EZPlay.Patches
             _eventBroadcaster?.BroadcastEvent("Alert.Dulicant.DiseaseGained", payload);
         }
     }
-    ////[HarmonyPatch(typeof(Klei.AI.AttributeInstance), "SetValue")]
+    [HarmonyPatch(typeof(Klei.AI.AttributeInstance), "SetValue")]
     public static class DuplicantAttributeChangedPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
