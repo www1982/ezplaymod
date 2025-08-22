@@ -10,7 +10,7 @@ namespace EZPlay.Logistics
         DISTRIBUTE
     }
 
-    public class LogisticsPolicy
+    public abstract class LogisticsPolicy : ILogisticsPolicy
     {
         public string policy_id { get; set; }
 
@@ -18,5 +18,6 @@ namespace EZPlay.Logistics
         public PolicyType policy_type { get; set; }
 
         public Dictionary<string, object> parameters { get; set; }
+        public abstract void Execute();
     }
 }

@@ -26,7 +26,6 @@ namespace EZPlay.Patches
             if (cell == Grid.InvalidCell) return;
 
             // 通知 BlueprintPlacer 有新的 Chore 被创建
-            BlueprintPlacer.NotifyChoreCreated(chore, cell);
         }
     }
 }

@@ -97,7 +97,7 @@ namespace EZPlay.API
         {
             if (!ApiServer.IsClientAllowed(Context.UserEndPoint.Address))
             {
-                Console.WriteLine($"[EZPlay.GameService] Unauthorized request from {Context.UserEndPoint.Address}");
+                Logger.Warning($"Unauthorized access attempt from IP: {Context.UserEndPoint.Address}");
                 var errorResponse = new ApiResponse
                 {
                     Type = "Error",

@@ -74,7 +74,7 @@ namespace EZPlay.API.Executors
             {
                 if (request.IsProperty)
                 {
-                    var prop = component.GetType().GetProperty(request.MemberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+                    var prop = component.GetType().GetProperty(request.MemberName, BindingFlags.Public | BindingFlags.Instance);
                     if (prop == null)
                     {
                         throw new ApiException(404, $"Property '{request.MemberName}' not found on component '{request.ComponentName}'.");
@@ -84,11 +84,13 @@ namespace EZPlay.API.Executors
                 }
                 else
                 {
-                    var method = component.GetType().GetMethod(request.MemberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+                    var method = component.GetType().GetMethod(request.MemberName, BindingFlags.Public | BindingFlags.Instance);
                     if (method == null)
                     {
                         throw new ApiException(404, $"Method '{request.MemberName}' not found on component '{request.ComponentName}'.");
                     }
+
+                    ValidateParameters(method, request.Parameters);
 
                     return new ExecutionResult { Success = true, Data = method.Invoke(component, request.Parameters) };
                 }
@@ -96,6 +98,46 @@ namespace EZPlay.API.Executors
             catch (Exception ex)
             {
                 throw new ApiException(500, $"An error occurred during reflection: {ex.InnerException?.Message ?? ex.Message}");
+            }
+        }
+
+        private static void ValidateParameters(MethodInfo method, object[] providedParameters)
+        {
+            var expectedParameters = method.GetParameters();
+            var providedCount = providedParameters?.Length ?? 0;
+
+            if (expectedParameters.Length != providedCount)
+            {
+                throw new ApiException(400, $"Parameter count mismatch for method '{method.Name}'. Expected {expectedParameters.Length}, but got {providedCount}.");
+            }
+
+            for (int i = 0; i < expectedParameters.Length; i++)
+            {
+                var expectedParam = expectedParameters[i];
+                var providedArg = providedParameters[i];
+                var expectedType = expectedParam.ParameterType;
+
+                if (providedArg == null)
+                {
+                    if (expectedType.IsValueType && Nullable.GetUnderlyingType(expectedType) == null)
+                        throw new ApiException(400, $"Parameter '{expectedParam.Name}' of type '{expectedType.Name}' cannot be null.");
+                    continue;
+                }
+
+                var providedType = providedArg.GetType();
+                if (!expectedType.IsAssignableFrom(providedType))
+                {
+                    try
+                    {
+                        // Handle cases like long -> int, double -> float
+                        var convertedValue = Convert.ChangeType(providedArg, expectedType);
+                        providedParameters[i] = convertedValue;
+                    }
+                    catch (Exception)
+                    {
+                        throw new ApiException(400, $"Type mismatch for parameter '{expectedParam.Name}'. Expected assignable from '{expectedType.FullName}', but got '{providedType.FullName}'.");
+                    }
+                }
             }
         }
 

@@ -11,6 +11,8 @@ namespace EZPlay.API
 {
     public class RequestHandler
     {
+        private static readonly JsonSerializerSettings SafeSettings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.None };
+
         public ApiResponse HandleRequest(ApiRequest request)
         {
             try
@@ -49,12 +51,17 @@ namespace EZPlay.API
 
                 object result = HandleAction(action, jObjectPayload);
 
+                if (result == null)
+                {
+                    return CreateResponse(request, "error", "Action handler returned null.");
+                }
+
                 // Check if the result is already a complete response
                 if (result is JObject resultJObject && resultJObject.TryGetValue("status", StringComparison.OrdinalIgnoreCase, out _))
                 {
                     // If it's a pre-formatted response, just add the request ID and return it as-is.
                     // This is useful for executors that return complex, custom-structured responses.
-                    var response = resultJObject.ToObject<ApiResponse>();
+                    var response = resultJObject.ToObject<ApiResponse>(JsonSerializer.Create(SafeSettings));
                     response.RequestId = request.RequestId;
                     return response;
                 }
@@ -133,7 +140,7 @@ namespace EZPlay.API
                     {
                         throw new ArgumentException("Payload for 'place_blueprint' must contain a 'blueprint' object.");
                     }
-                    var blueprint = blueprintToken.ToObject<Blueprint>();
+                    var blueprint = blueprintToken.ToObject<Blueprint>(JsonSerializer.Create(SafeSettings));
                     return BlueprintManager.PlaceBlueprint(worldId, blueprint);
                 case "destroy_building":
                     return BuildingDestroyer.Execute(GetWorldId(payload), payloadString);

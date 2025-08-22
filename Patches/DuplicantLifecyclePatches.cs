@@ -3,6 +3,7 @@ using EZPlay.Core;
 using EZPlay.Core.Interfaces;
 using System.Linq;
 using Klei.AI;
+using System.Collections.Generic;
 
 namespace EZPlay.Patches
 {
@@ -11,34 +12,41 @@ namespace EZPlay.Patches
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
         private static MinionStartingStats printedStats;
+        private static readonly object _lock = new object();
 
         public static void Prefix(ITelepadDeliverable deliverable)
         {
-            if (deliverable is MinionStartingStats stats)
+            lock (_lock)
             {
-                printedStats = stats;
+                if (deliverable is MinionStartingStats stats)
+                {
+                    printedStats = stats;
+                }
             }
         }
 
         public static void Postfix()
         {
-            if (printedStats == null) return;
-
-            var minion = Components.LiveMinionIdentities.Items.FirstOrDefault(m =>
-                m.GetComponent<Traits>().GetTraitIds().SequenceEqual(printedStats.Traits.Select(t => t.Id)));
-
-            if (minion == null) return;
-
-            var payload = new
+            lock (_lock)
             {
-                duplicantId = minion.GetComponent<KPrefabID>().InstanceID.ToString(),
-                duplicantName = minion.GetProperName(),
-                traits = minion.GetComponent<Traits>().GetTraitIds()
-            };
+                if (printedStats == null) return;
 
-            _eventBroadcaster?.BroadcastEvent("Lifecycle.Duplicant.Printed", payload);
+                var minion = Components.LiveMinionIdentities.Items.FirstOrDefault(m =>
+                    m.GetComponent<Traits>().GetTraitIds().SequenceEqual(printedStats.Traits.Select(t => t.Id)));
 
-            printedStats = null;
+                if (minion == null) return;
+
+                var payload = new
+                {
+                    duplicantId = minion.GetComponent<KPrefabID>().InstanceID.ToString(),
+                    duplicantName = minion.GetProperName(),
+                    traits = minion.GetComponent<Traits>().GetTraitIds()
+                };
+
+                _eventBroadcaster?.BroadcastEvent("Lifecycle.Duplicant.Printed", payload);
+
+                printedStats = null;
+            }
         }
     }
 
@@ -49,7 +57,6 @@ namespace EZPlay.Patches
 
         public static void Postfix(DeathMonitor.Instance __instance, Death death)
         {
-            // 确保是复制人死亡
             if (!__instance.IsDuplicant) return;
 
             var minionIdentity = __instance.GetComponent<MinionIdentity>();
@@ -58,7 +65,6 @@ namespace EZPlay.Patches
             var victimName = __instance.gameObject.GetProperName();
             var deathReason = death.Id;
 
-            // 广播通用的死亡事件
             var deathPayload = new
             {
                 duplicantId = minionIdentity.GetComponent<KPrefabID>().InstanceID.ToString(),
@@ -67,22 +73,6 @@ namespace EZPlay.Patches
                 cell = Grid.PosToCell(minionIdentity.transform.position)
             };
             _eventBroadcaster?.BroadcastEvent("Lifecycle.Duplicant.Death", deathPayload);
-
-            // 广播特定的警报事件
-            string alertEventType = null;
-            if (deathReason == "Suffocation")
-            {
-                alertEventType = "Alert.DuplicantSuffocating";
-            }
-            else if (deathReason == "Starvation")
-            {
-                alertEventType = "Alert.DuplicantStarving";
-            }
-
-            if (alertEventType != null)
-            {
-                _eventBroadcaster?.BroadcastEvent(alertEventType, new { DuplicantName = victimName });
-            }
         }
     }
 
@@ -111,6 +101,7 @@ namespace EZPlay.Patches
     public static class DuplicantStressBreakPatch
     {
         private static readonly IEventBroadcaster _eventBroadcaster = ServiceContainer.Resolve<IEventBroadcaster>();
+        private static readonly HashSet<string> StressTraitIds = new HashSet<string> { "Vomiter", "Destructive", "BingeEater", "UglyCrier", "Banshee" };
 
         public static void Postfix(StressMonitor.Instance __instance, ref bool __result)
         {
@@ -124,7 +115,7 @@ namespace EZPlay.Patches
                 duplicantId = minionIdentity.GetComponent<KPrefabID>().InstanceID.ToString(),
                 duplicantName = minionIdentity.GetProperName(),
                 stressPercent = __instance.stress.value,
-                breakType = __instance.CreateConcernReactable()?.id ?? "Unknown"
+                breakType = minionIdentity.GetComponent<Traits>().GetTraitIds().FirstOrDefault(t => StressTraitIds.Contains(t)) ?? "Unknown"
             };
 
             _eventBroadcaster?.BroadcastEvent("Alert.Duplicant.StressBreak", payload);
