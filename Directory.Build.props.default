@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <GameLibsFolder>$(MSBuildProjectDirectory)\lib</GameLibsFolder>
+    <ModFolder>$(USERPROFILE)\Documents\Klei\OxygenNotIncluded\mods\dev</ModFolder>
+  </PropertyGroup>
+</Project>
