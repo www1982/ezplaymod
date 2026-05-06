@@ -1,0 +1,9 @@
+c:\Users\Adim\Desktop\ezplaymod-stable\ezplaymod-stable\bin\Debug\net48\EZPlay.dll
+c:\Users\Adim\Desktop\ezplaymod-stable\ezplaymod-stable\bin\Debug\net48\EZPlay.pdb
+c:\Users\Adim\Desktop\ezplaymod-stable\ezplaymod-stable\obj\Debug\net48\EZPlay.csproj.AssemblyReference.cache
+c:\Users\Adim\Desktop\ezplaymod-stable\ezplaymod-stable\obj\Debug\net48\EZPlay.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\Adim\Desktop\ezplaymod-stable\ezplaymod-stable\obj\Debug\net48\EZPlay.AssemblyInfoInputs.cache
+c:\Users\Adim\Desktop\ezplaymod-stable\ezplaymod-stable\obj\Debug\net48\EZPlay.AssemblyInfo.cs
+c:\Users\Adim\Desktop\ezplaymod-stable\ezplaymod-stable\obj\Debug\net48\EZPlay.csproj.CoreCompileInputs.cache
+c:\Users\Adim\Desktop\ezplaymod-stable\ezplaymod-stable\obj\Debug\net48\EZPlay.dll
+c:\Users\Adim\Desktop\ezplaymod-stable\ezplaymod-stable\obj\Debug\net48\EZPlay.pdb

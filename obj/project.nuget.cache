@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "hNQb8mkKmpg=",
+  "success": true,
+  "projectFilePath": "c:\\Users\\Adim\\Desktop\\ezplaymod-stable\\ezplaymod-stable\\EZPlay.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Adim\\.nuget\\packages\\krafs.publicizer\\2.2.1\\krafs.publicizer.2.2.1.nupkg.sha512",
+    "C:\\Users\\Adim\\.nuget\\packages\\websocketsharp-netstandard\\1.0.1\\websocketsharp-netstandard.1.0.1.nupkg.sha512"
+  ],
+  "logs": []
+}
