@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>EZPlay WebSocket Test</title>
+    <style>
+        body { background: #1a1a2e; color: #eee; font-family: 'Consolas', monospace; padding: 20px; }
+        h1 { color: #00d4ff; }
+        .panel { background: #16213e; border: 1px solid #0f3460; border-radius: 8px; padding: 15px; margin: 10px 0; }
+        .status { font-size: 1.2em; padding: 10px; border-radius: 5px; }
+        .connected { background: #0a3d0a; color: #4cff4c; }
+        .disconnected { background: #3d0a0a; color: #ff4c4c; }
+        .connecting { background: #3d3d0a; color: #ffff4c; }
+        #log { max-height: 500px; overflow-y: auto; white-space: pre-wrap; font-size: 0.85em; line-height: 1.5; }
+        .log-entry { border-bottom: 1px solid #0f3460; padding: 5px 0; }
+        .log-recv { color: #4cff4c; }
+        .log-send { color: #4c9fff; }
+        .log-error { color: #ff4c4c; }
+        .log-info { color: #aaa; }
+        button { background: #0f3460; color: #fff; border: 1px solid #00d4ff; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #00d4ff; color: #000; }
+        input { background: #0a0a1a; color: #eee; border: 1px solid #0f3460; padding: 8px; border-radius: 5px; width: 300px; }
+    </style>
+</head>
+<body>
+    <h1>🎮 EZPlay WebSocket Tester</h1>
+
+    <div class="panel">
+        <b>API Server:</b> <input id="apiUrl" value="ws://127.0.0.1:8080/api" />
+        <button onclick="connectApi()">Connect API</button>
+        <button onclick="disconnectApi()">Disconnect</button>
+        <div id="apiStatus" class="status disconnected">API: Disconnected</div>
+    </div>
+
+    <div class="panel">
+        <b>Event Server:</b> <input id="eventUrl" value="ws://127.0.0.1:8081/" />
+        <button onclick="connectEvent()">Connect Events</button>
+        <button onclick="disconnectEvent()">Disconnect</button>
+        <div id="eventStatus" class="status disconnected">Events: Disconnected</div>
+    </div>
+
+    <div class="panel">
+        <b>Send API Command:</b><br>
+        <button onclick="sendCmd('state')">Get State</button>
+        <button onclick="sendCustom()">Send Custom</button>
+        <input id="customAction" value="state" placeholder="action" style="width:150px" />
+    </div>
+
+    <div class="panel">
+        <b>Log:</b> <button onclick="clearLog()">Clear</button>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let apiWs = null, eventWs = null;
+
+        function log(msg, cls) {
+            const el = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + (cls || 'log-info');
+            entry.textContent = new Date().toLocaleTimeString() + ' | ' + msg;
+            el.prepend(entry);
+        }
+
+        function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+        function connectApi() {
+            const url = document.getElementById('apiUrl').value;
+            document.getElementById('apiStatus').className = 'status connecting';
+            document.getElementById('apiStatus').textContent = 'API: Connecting...';
+            log('Connecting to API: ' + url);
+            try {
+                apiWs = new WebSocket(url);
+                apiWs.onopen = () => {
+                    document.getElementById('apiStatus').className = 'status connected';
+                    document.getElementById('apiStatus').textContent = 'API: Connected ✓';
+                    log('API Connected!', 'log-recv');
+                };
+                apiWs.onmessage = (e) => {
+                    try {
+                        const data = JSON.parse(e.data);
+                        log('API ← ' + JSON.stringify(data, null, 2), 'log-recv');
+                    } catch { log('API ← ' + e.data, 'log-recv'); }
+                };
+                apiWs.onclose = () => {
+                    document.getElementById('apiStatus').className = 'status disconnected';
+                    document.getElementById('apiStatus').textContent = 'API: Disconnected';
+                    log('API Disconnected', 'log-error');
+                };
+                apiWs.onerror = (e) => { log('API Error: ' + e.type, 'log-error'); };
+            } catch (e) { log('API Connection failed: ' + e.message, 'log-error'); }
+        }
+
+        function disconnectApi() { if (apiWs) apiWs.close(); }
+
+        function connectEvent() {
+            const url = document.getElementById('eventUrl').value;
+            document.getElementById('eventStatus').className = 'status connecting';
+            document.getElementById('eventStatus').textContent = 'Events: Connecting...';
+            log('Connecting to Events: ' + url);
+            try {
+                eventWs = new WebSocket(url);
+                eventWs.onopen = () => {
+                    document.getElementById('eventStatus').className = 'status connected';
+                    document.getElementById('eventStatus').textContent = 'Events: Connected ✓';
+                    log('Events Connected!', 'log-recv');
+                };
+                eventWs.onmessage = (e) => {
+                    try {
+                        const data = JSON.parse(e.data);
+                        log('EVT ← ' + JSON.stringify(data, null, 2), 'log-recv');
+                    } catch { log('EVT ← ' + e.data, 'log-recv'); }
+                };
+                eventWs.onclose = () => {
+                    document.getElementById('eventStatus').className = 'status disconnected';
+                    document.getElementById('eventStatus').textContent = 'Events: Disconnected';
+                    log('Events Disconnected', 'log-error');
+                };
+                eventWs.onerror = (e) => { log('Events Error: ' + e.type, 'log-error'); };
+            } catch (e) { log('Events Connection failed: ' + e.message, 'log-error'); }
+        }
+
+        function disconnectEvent() { if (eventWs) eventWs.close(); }
+
+        function sendCmd(action) {
+            if (!apiWs || apiWs.readyState !== 1) { log('API not connected!', 'log-error'); return; }
+            const msg = JSON.stringify({ action: action, requestId: 'test-' + Date.now(), payload: { worldId: 0 } });
+            apiWs.send(msg);
+            log('API → ' + msg, 'log-send');
+        }
+
+        function sendCustom() {
+            sendCmd(document.getElementById('customAction').value);
+        }
+    </script>
+</body>
+</html>
